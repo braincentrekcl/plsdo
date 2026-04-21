@@ -305,3 +305,86 @@ def plot_scores_scatter(
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
     plt.close()
+
+
+def plot_cv_accuracy(
+    fold_accuracies: np.ndarray,
+    mean_accuracy: float,
+    chance_level: float,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot histogram of per-fold CV accuracies.
+
+    Reference: claude_cross_validation.py section 7a.
+    """
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(fold_accuracies, bins=20, color="steelblue", edgecolor="white")
+    ax.axvline(
+        mean_accuracy, color="red", linestyle="--",
+        label=f"Mean = {mean_accuracy:.3f}",
+    )
+    ax.axvline(
+        chance_level, color="gray", linestyle=":",
+        label=f"Chance = {chance_level:.3f}",
+    )
+    ax.set_xlabel("Fold accuracy")
+    ax.set_ylabel("Count")
+    ax.set_title("Per-fold accuracy distribution")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)
+
+
+def plot_cv_permutation(
+    null_accuracies: np.ndarray,
+    observed_accuracy: float,
+    p_value: float,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot null distribution of permuted CV accuracies.
+
+    Reference: claude_cross_validation.py section 7b.
+    """
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.hist(
+        null_accuracies, bins=40, color="gray",
+        edgecolor="white", alpha=0.7,
+    )
+    ax.axvline(
+        observed_accuracy, color="red", linestyle="--", linewidth=2,
+        label=f"Observed = {observed_accuracy:.3f}",
+    )
+    ax.set_xlabel("Mean CV accuracy (permuted labels)")
+    ax.set_ylabel("Count")
+    ax.set_title(f"Permutation test (p = {p_value:.4f})")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)
+
+
+def plot_confusion_matrix(
+    cm: np.ndarray,
+    label_names: list[str],
+    mean_accuracy: float,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot normalised confusion matrix heatmap.
+
+    Reference: claude_cross_validation.py section 7c.
+    """
+    from sklearn.metrics import ConfusionMatrixDisplay
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm, display_labels=label_names,
+    )
+    disp.plot(ax=ax, cmap="Blues", values_format=".0%")
+    ax.set_title(f"CV confusion matrix\nAccuracy: {mean_accuracy:.1%}")
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)

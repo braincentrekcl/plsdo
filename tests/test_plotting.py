@@ -8,6 +8,7 @@ from pathlib import Path
 from plsdo.plotting import (
     figure_size, plot_heatmap, plot_permutation,
     plot_loadings, plot_scores_boxstrip, plot_scores_scatter,
+    plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix,
 )
 
 
@@ -145,5 +146,34 @@ class TestPlotScoresScatter:
             hue_col="group",
             lv_name="LV1",
             out_path=out,
+        )
+        assert out.exists()
+
+
+class TestCVPlots:
+    def test_cv_accuracy_saves(self, tmp_output):
+        accs = np.random.default_rng(0).uniform(0.2, 0.8, size=50)
+        out = tmp_output / "cv_acc.svg"
+        plot_cv_accuracy(
+            fold_accuracies=accs, mean_accuracy=0.5,
+            chance_level=0.25, out_path=out,
+        )
+        assert out.exists()
+
+    def test_cv_permutation_saves(self, tmp_output):
+        null_accs = np.random.default_rng(0).uniform(0.2, 0.4, size=100)
+        out = tmp_output / "cv_perm.svg"
+        plot_cv_permutation(
+            null_accuracies=null_accs, observed_accuracy=0.6,
+            p_value=0.01, out_path=out,
+        )
+        assert out.exists()
+
+    def test_confusion_matrix_saves(self, tmp_output):
+        cm = np.array([[0.8, 0.1, 0.1], [0.2, 0.7, 0.1], [0.1, 0.2, 0.7]])
+        out = tmp_output / "cm.svg"
+        plot_confusion_matrix(
+            cm=cm, label_names=["A", "B", "C"],
+            mean_accuracy=0.73, out_path=out,
         )
         assert out.exists()
