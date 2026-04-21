@@ -3,6 +3,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from pathlib import Path
 from typing import Optional
@@ -137,3 +138,170 @@ def plot_permutation(
     fig.tight_layout()
     fig.savefig(out_path, transparent=False, dpi=dpi)
     plt.close(fig)
+
+
+def plot_loadings(
+    loadings: np.ndarray,
+    se: np.ndarray,
+    feature_names: list[str],
+    lv_name: str,
+    out_path: Path,
+    colours: Optional[list] = None,
+    dpi: int = 300,
+) -> None:
+    """Plot horizontal loading bar chart with SE error bars.
+
+    Reference: correlational_pls.ipynb cells 48-49.
+
+    Parameters
+    ----------
+    loadings : ndarray, shape (n_features,)
+    se : ndarray, shape (n_features,)
+    feature_names : list of str
+    lv_name : str
+        E.g. "LV1".
+    out_path : Path
+    colours : list, optional
+        Per-feature colours from metadata categories.
+    """
+    n_features = len(loadings)
+    sort_idx = np.argsort(np.abs(loadings))
+
+    sorted_loadings = loadings[sort_idx]
+    sorted_se = se[sort_idx]
+    sorted_names = [feature_names[i] for i in sort_idx]
+    sorted_colours = (
+        [colours[i] for i in sort_idx] if colours is not None
+        else ["steelblue"] * n_features
+    )
+
+    height = max(4, n_features * 0.3 + 1)
+    fig, ax = plt.subplots(figsize=(8, height))
+    ax.barh(
+        np.arange(n_features),
+        sorted_loadings,
+        xerr=sorted_se,
+        tick_label=sorted_names,
+        color=sorted_colours,
+        ecolor="red",
+    )
+    ax.set_title(f"Loadings for {lv_name}")
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)
+
+
+def plot_scores_boxstrip(
+    scores_df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    col_col: str,
+    out_path: Path,
+    hue_col: Optional[str] = None,
+    row_col: Optional[str] = None,
+    col_wrap: Optional[int] = None,
+    dpi: int = 300,
+) -> None:
+    """Plot box/strip plots of subject scores by group.
+
+    Reference: correlational_pls.ipynb boxstripplot function.
+
+    Parameters
+    ----------
+    scores_df : DataFrame
+        Long-format dataframe with score, LV, and group columns.
+    x_col : str
+        Column for x-axis categories.
+    y_col : str
+        Column for score values.
+    col_col : str
+        Column for facet columns.
+    out_path : Path
+    hue_col : str, optional
+        Column for colour encoding.
+    row_col : str, optional
+        Column for facet rows.
+    col_wrap : int, optional
+        Number of facet columns before wrapping.
+    """
+    hue = hue_col or x_col
+    order = (
+        scores_df[x_col].cat.categories.tolist()
+        if hasattr(scores_df[x_col], "cat")
+        else sorted(scores_df[x_col].unique())
+    )
+
+    kwargs = {}
+    if col_wrap is not None:
+        kwargs["col_wrap"] = col_wrap
+    elif row_col is not None:
+        kwargs["row"] = row_col
+    else:
+        kwargs["col_wrap"] = 2
+
+    g = sns.catplot(
+        data=scores_df,
+        x=x_col, y=y_col, hue=hue, col=col_col,
+        order=order,
+        kind="box",
+        sharex=False,
+        palette="Set2",
+        boxprops={"edgecolor": "gray", "alpha": 0.5},
+        medianprops={"color": "k", "ls": "--", "lw": 1},
+        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
+        showfliers=False,
+        legend_out=True,
+        **kwargs,
+    )
+    g.map(
+        sns.stripplot, x_col, y_col, hue,
+        order=order,
+        size=5, dodge=True, palette="Set2",
+        jitter=True, linewidth=1, edgecolor=".5",
+    )
+    plt.tight_layout()
+    g.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close()
+
+
+def plot_scores_scatter(
+    scatter_df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    hue_col: str,
+    lv_name: str,
+    out_path: Path,
+    col_col: Optional[str] = None,
+    dpi: int = 300,
+) -> None:
+    """Plot XU vs YV' score scatter with per-group linear fits.
+
+    Reference: correlational_pls.ipynb cells 75-78.
+
+    Parameters
+    ----------
+    scatter_df : DataFrame
+    x_col, y_col : str
+        Columns for X and Y scores.
+    hue_col : str
+        Column for group colouring.
+    lv_name : str
+    out_path : Path
+    col_col : str, optional
+        Column for facetting.
+    """
+    kwargs = {"col": col_col} if col_col else {}
+    g = sns.lmplot(
+        data=scatter_df,
+        x=x_col, y=y_col, hue=hue_col,
+        palette="Set2",
+        scatter_kws={"edgecolor": "gray"},
+        line_kws={"alpha": 0.5, "linestyle": "--"},
+        ci=95,
+        **kwargs,
+    )
+    g.set_axis_labels(x_var="X score", y_var="Y score")
+    g.figure.suptitle(f"Score scatter for {lv_name}", y=1.02)
+    plt.tight_layout()
+    g.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close()

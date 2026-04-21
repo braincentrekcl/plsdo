@@ -5,7 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from pathlib import Path
-from plsdo.plotting import figure_size, plot_heatmap, plot_permutation
+from plsdo.plotting import (
+    figure_size, plot_heatmap, plot_permutation,
+    plot_loadings, plot_scores_boxstrip, plot_scores_scatter,
+)
 
 
 class TestFigureSize:
@@ -69,4 +72,78 @@ class TestPlotPermutation:
         p_vals = np.array([0.01, 0.05, 0.50])
         out = tmp_output / "perm.svg"
         plot_permutation(s, perm_s, p_vals, out_path=out)
+        assert out.exists()
+
+
+class TestPlotLoadings:
+    def test_saves_file(self, tmp_output):
+        loadings = np.array([0.8, -0.5, 0.3, -0.9, 0.1])
+        se = np.array([0.1, 0.2, 0.15, 0.1, 0.3])
+        out = tmp_output / "loadings.svg"
+        plot_loadings(
+            loadings=loadings,
+            se=se,
+            feature_names=["f1", "f2", "f3", "f4", "f5"],
+            lv_name="LV1",
+            out_path=out,
+        )
+        assert out.exists()
+
+    def test_with_category_colours(self, tmp_output):
+        loadings = np.array([0.8, -0.5, 0.3])
+        se = np.array([0.1, 0.2, 0.15])
+        colours = ["red", "red", "blue"]
+        out = tmp_output / "loadings_coloured.svg"
+        plot_loadings(
+            loadings=loadings,
+            se=se,
+            feature_names=["f1", "f2", "f3"],
+            lv_name="LV1",
+            out_path=out,
+            colours=colours,
+        )
+        assert out.exists()
+
+
+class TestPlotScoresBoxstrip:
+    def test_saves_file(self, tmp_output):
+        import pandas as pd
+
+        scores_df = pd.DataFrame({
+            "score": np.random.default_rng(0).standard_normal(12),
+            "LV": ["LV1"] * 6 + ["LV2"] * 6,
+            "group": ["A", "A", "B", "B", "C", "C"] * 2,
+        })
+        scores_df["group"] = pd.Categorical(
+            scores_df["group"], categories=["A", "B", "C"], ordered=True
+        )
+        out = tmp_output / "scores_box.svg"
+        plot_scores_boxstrip(
+            scores_df=scores_df,
+            x_col="group",
+            y_col="score",
+            col_col="LV",
+            out_path=out,
+        )
+        assert out.exists()
+
+
+class TestPlotScoresScatter:
+    def test_saves_file(self, tmp_output):
+        import pandas as pd
+
+        scatter_df = pd.DataFrame({
+            "x_score": np.random.default_rng(0).standard_normal(12),
+            "y_score": np.random.default_rng(1).standard_normal(12),
+            "group": ["A"] * 4 + ["B"] * 4 + ["C"] * 4,
+        })
+        out = tmp_output / "scatter.svg"
+        plot_scores_scatter(
+            scatter_df=scatter_df,
+            x_col="x_score",
+            y_col="y_score",
+            hue_col="group",
+            lv_name="LV1",
+            out_path=out,
+        )
         assert out.exists()
