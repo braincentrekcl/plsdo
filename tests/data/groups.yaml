@@ -1,0 +1,8 @@
+subject_id: subject_id
+groups:
+  - column: group
+    role: x_axis
+    reference: A
+    order: [A, B, C]
+  - column: sex
+    role: hue
