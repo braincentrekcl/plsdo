@@ -1,6 +1,9 @@
 """Core PLS computation: SVD, permutation testing, bootstrap reliability."""
 
 import numpy as np
+from scipy.linalg import orthogonal_procrustes
+
+from plsdo.io import zscore_columns
 
 
 class PLS:
@@ -86,3 +89,60 @@ class PLS:
             self.permuted_singular_values >= self.s[:, None], axis=1
         )
         self.significant_lvs = self.p_values < 0.05
+
+    def bootstrap(self, n_bootstraps: int = 10000) -> None:
+        """Assess reliability of loadings via bootstrap resampling.
+
+        Resamples subjects with replacement, recomputes SVD, aligns
+        via Procrustes rotation, and computes bootstrap ratios
+        (loadings / standard error).
+
+        Parameters
+        ----------
+        n_bootstraps : int
+            Number of bootstrap resamples.
+        """
+        self._check_fitted()
+
+        boot_rng = np.random.default_rng(self._rng.integers(2**31))
+        row_idx = np.arange(self.n_subjects)
+
+        u_distribution = []
+        vt_distribution = []
+
+        for _ in range(n_bootstraps):
+            idx = boot_rng.choice(row_idx, size=self.n_subjects, replace=True)
+            x_boot = zscore_columns(self.X[idx, :])
+            y_boot = zscore_columns(self.Y[idx, :])
+
+            boot_xcorr = x_boot.T @ y_boot / (self.n_subjects - 1)
+            boot_u, boot_s, boot_vt = np.linalg.svd(
+                boot_xcorr, full_matrices=False
+            )
+
+            # Procrustes: rotate bootstrap Vt to align with reference
+            Q, _ = orthogonal_procrustes(boot_vt.T, self.vt.T)
+
+            boot_u_load = boot_u @ np.diag(boot_s)
+            boot_vt_load = np.diag(boot_s) @ boot_vt
+
+            aligned_u_load = boot_u_load @ Q
+            aligned_vt_load = Q.T @ boot_vt_load
+
+            # Sign correction
+            signs = np.sign(
+                np.sum(aligned_vt_load * self.vt_loadings, axis=1, keepdims=True)
+            )
+            signs[signs == 0] = 1.0
+
+            u_distribution.append(aligned_u_load * signs.T)
+            vt_distribution.append(aligned_vt_load * signs)
+
+        self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2)
+        self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2)
+
+        eps = 1e-12
+        self.u_bootstrap_ratios = self.u_loadings / np.maximum(self.u_se, eps)
+        self.vt_bootstrap_ratios = self.vt_loadings / np.maximum(
+            self.vt_se, eps
+        )

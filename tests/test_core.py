@@ -123,3 +123,62 @@ class TestPermutationTest:
         np.testing.assert_array_equal(
             m1.permuted_singular_values, m2.permuted_singular_values
         )
+
+
+class TestBootstrap:
+    def _fitted_model(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        X = zscore_columns(x_array)
+        Y = zscore_columns(y_array)
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        return model
+
+    def test_before_fit_raises(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        with pytest.raises(RuntimeError, match="fit"):
+            model.bootstrap()
+
+    def test_stores_results(self, x_array, y_array):
+        model = self._fitted_model(x_array, y_array)
+        model.bootstrap(n_bootstraps=100)
+
+        n_x = x_array.shape[1]
+        n_y = y_array.shape[1]
+        n_components = min(n_x, n_y)
+
+        assert model.u_bootstrap_ratios.shape == (n_x, n_components)
+        assert model.vt_bootstrap_ratios.shape == (n_components, n_y)
+        assert model.u_se.shape == (n_x, n_components)
+        assert model.vt_se.shape == (n_components, n_y)
+
+    def test_bootstrap_ratios_are_loadings_over_se(self, x_array, y_array):
+        model = self._fitted_model(x_array, y_array)
+        model.bootstrap(n_bootstraps=100)
+
+        eps = 1e-12
+        expected_u_bsr = model.u_loadings / np.maximum(model.u_se, eps)
+        expected_vt_bsr = model.vt_loadings / np.maximum(model.vt_se, eps)
+        np.testing.assert_allclose(model.u_bootstrap_ratios, expected_u_bsr)
+        np.testing.assert_allclose(model.vt_bootstrap_ratios, expected_vt_bsr)
+
+    def test_seed_reproducibility(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        X = zscore_columns(x_array)
+        Y = zscore_columns(y_array)
+
+        m1 = PLS(X, Y, seed=42)
+        m1.fit()
+        m1.bootstrap(n_bootstraps=100)
+
+        m2 = PLS(X, Y, seed=42)
+        m2.fit()
+        m2.bootstrap(n_bootstraps=100)
+
+        np.testing.assert_array_equal(
+            m1.u_bootstrap_ratios, m2.u_bootstrap_ratios
+        )
