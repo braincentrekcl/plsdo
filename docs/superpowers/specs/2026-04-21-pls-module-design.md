@@ -508,7 +508,14 @@ in the repository.
 [project]
 name = "plsdo"
 version = "0.1.0"
-description = "PLS covariance analysis with statistical testing and visualization"
+description = "PLS covariance analysis with statistical testing and visualisation"
+license = "BSD-3-Clause"
+authors = [
+    { name = "Eilidh MacNicol" },
+]
+maintainers = [
+    { name = "Eilidh MacNicol" },
+]
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -530,6 +537,10 @@ dev = [
 
 [project.scripts]
 plsdo = "plsdo.cli:pls_main"
+
+[project.urls]
+Repository = "https://github.com/braincentrekcl/plsdo"
+Issues = "https://github.com/braincentrekcl/plsdo/issues"
 
 [build-system]
 requires = ["hatchling"]

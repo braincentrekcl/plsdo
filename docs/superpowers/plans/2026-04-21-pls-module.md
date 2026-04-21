@@ -68,6 +68,13 @@ docs/
 name = "plsdo"
 version = "0.1.0"
 description = "PLS covariance analysis with statistical testing and visualisation"
+license = "BSD-3-Clause"
+authors = [
+    { name = "Eilidh MacNicol" },
+]
+maintainers = [
+    { name = "Eilidh MacNicol" },
+]
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -91,12 +98,49 @@ dev = [
 [project.scripts]
 plsdo = "plsdo.cli:pls_main"
 
+[project.urls]
+Repository = "https://github.com/braincentrekcl/plsdo"
+Issues = "https://github.com/braincentrekcl/plsdo/issues"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
 
-- [ ] **Step 2: Create package stubs**
+- [ ] **Step 2: Create `LICENSE`**
+
+```
+BSD 3-Clause License
+
+Copyright (c) 2026, Eilidh MacNicol
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+- [ ] **Step 3: Create package stubs**
 
 `plsdo/__init__.py`:
 ```python
@@ -146,7 +190,7 @@ def pls_main(argv=None):
 """Shared test fixtures."""
 ```
 
-- [ ] **Step 3: Create virtual environment and install**
+- [ ] **Step 4: Create virtual environment and install**
 
 Run:
 ```bash
@@ -155,7 +199,7 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-- [ ] **Step 4: Verify CLI stub works**
+- [ ] **Step 5: Verify CLI stub works**
 
 Run: `plsdo --help`
 
@@ -169,16 +213,16 @@ Options:
   --help  Show this message and exit.
 ```
 
-- [ ] **Step 5: Verify pytest runs**
+- [ ] **Step 6: Verify pytest runs**
 
 Run: `pytest --co -q`
 
 Expected: `no tests ran` (no error)
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```
-chore: scaffold plsdo package with pyproject.toml and module stubs
+chore: scaffold plsdo package with pyproject.toml, LICENSE, and module stubs
 ```
 
 ---
