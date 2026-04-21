@@ -146,3 +146,39 @@ class PLS:
         self.vt_bootstrap_ratios = self.vt_loadings / np.maximum(
             self.vt_se, eps
         )
+
+    def filter_lvs(self, bsr_threshold: float = 1.96) -> None:
+        """Filter latent variables by significance and reliability.
+
+        Keeps LVs that are:
+        1. Significant (permutation p < 0.05)
+        2. Have at least one feature with |bootstrap ratio| > threshold
+           on both the X and Y sides
+
+        Parameters
+        ----------
+        bsr_threshold : float
+            Bootstrap ratio threshold (default 1.96 for 95% CI).
+        """
+        if not hasattr(self, "p_values"):
+            raise RuntimeError(
+                "Call .permutation_test() before .filter_lvs()."
+            )
+        if not hasattr(self, "u_bootstrap_ratios"):
+            raise RuntimeError(
+                "Call .bootstrap() before .filter_lvs()."
+            )
+
+        significant = self.p_values < 0.05
+
+        # Check if any feature exceeds threshold on X side
+        x_reliable = np.any(
+            np.abs(self.u_bootstrap_ratios) > bsr_threshold, axis=0
+        )
+
+        # Check if any feature exceeds threshold on Y side
+        y_reliable = np.any(
+            np.abs(self.vt_bootstrap_ratios) > bsr_threshold, axis=1
+        )
+
+        self.final_lvs = significant & x_reliable & y_reliable

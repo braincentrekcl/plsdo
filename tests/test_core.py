@@ -182,3 +182,53 @@ class TestBootstrap:
         np.testing.assert_array_equal(
             m1.u_bootstrap_ratios, m2.u_bootstrap_ratios
         )
+
+
+class TestFilterLVs:
+    def test_before_permutation_raises(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+        with pytest.raises(RuntimeError, match="permutation"):
+            model.filter_lvs()
+
+    def test_before_bootstrap_raises(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array), seed=42)
+        model.fit()
+        model.permutation_test(n_perms=100)
+        with pytest.raises(RuntimeError, match="bootstrap"):
+            model.filter_lvs()
+
+    def test_filters_on_significance_and_reliability(self):
+        """Manually set up a model with known p-values and bootstrap ratios."""
+        X = np.random.default_rng(0).standard_normal((20, 3))
+        Y = np.random.default_rng(1).standard_normal((20, 3))
+        model = PLS(X, Y, seed=42)
+        model.fit()
+
+        # Manually set permutation results: LV1 significant, LV2 not, LV3 significant
+        model.p_values = np.array([0.01, 0.50, 0.03])
+        model.significant_lvs = model.p_values < 0.05
+
+        # Manually set bootstrap ratios:
+        # LV1: reliable on both sides (|BSR| > 1.96)
+        # LV3: reliable on X but not Y
+        model.u_bootstrap_ratios = np.array([
+            [3.0, 0.5, 2.5],  # feature 1
+            [0.1, 0.1, 0.1],  # feature 2
+            [2.1, 0.3, 2.0],  # feature 3
+        ])
+        model.vt_bootstrap_ratios = np.array([
+            [2.5, 0.2, 0.5],  # LV1: reliable
+            [0.1, 0.1, 0.1],  # LV2: not reliable
+            [1.0, 0.3, 1.5],  # LV3: not reliable (no feature > 1.96)
+        ])
+
+        model.filter_lvs()
+
+        # Only LV1 should survive (significant + reliable on both sides)
+        expected = np.array([True, False, False])
+        np.testing.assert_array_equal(model.final_lvs, expected)
