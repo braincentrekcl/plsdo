@@ -71,3 +71,55 @@ class TestPLSFit:
         assert all(
             model.s[i] >= model.s[i + 1] for i in range(len(model.s) - 1)
         )
+
+
+class TestPermutationTest:
+    def _fitted_model(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        X = zscore_columns(x_array)
+        Y = zscore_columns(y_array)
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        return model
+
+    def test_before_fit_raises(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        with pytest.raises(RuntimeError, match="fit"):
+            model.permutation_test()
+
+    def test_stores_results(self, x_array, y_array):
+        model = self._fitted_model(x_array, y_array)
+        model.permutation_test(n_perms=100)
+
+        n_components = min(x_array.shape[1], y_array.shape[1])
+        assert model.p_values.shape == (n_components,)
+        assert model.permuted_singular_values.shape == (n_components, 100)
+        assert model.significant_lvs.dtype == bool
+
+    def test_p_values_between_0_and_1(self, x_array, y_array):
+        model = self._fitted_model(x_array, y_array)
+        model.permutation_test(n_perms=100)
+        assert np.all(model.p_values >= 0.0)
+        assert np.all(model.p_values <= 1.0)
+
+    def test_seed_reproducibility(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        X = zscore_columns(x_array)
+        Y = zscore_columns(y_array)
+
+        m1 = PLS(X, Y, seed=42)
+        m1.fit()
+        m1.permutation_test(n_perms=100)
+
+        m2 = PLS(X, Y, seed=42)
+        m2.fit()
+        m2.permutation_test(n_perms=100)
+
+        np.testing.assert_array_equal(m1.p_values, m2.p_values)
+        np.testing.assert_array_equal(
+            m1.permuted_singular_values, m2.permuted_singular_values
+        )
