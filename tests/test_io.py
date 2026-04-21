@@ -6,7 +6,8 @@ import yaml
 from plsdo.io import (
     load_csv, detect_subject_id, align_subjects,
     check_missing_values, check_variance, zscore_columns,
-    parse_groups_config, GroupConfig,
+    parse_groups_config, GroupConfig, GroupSpec,
+    load_metadata, build_design_matrix,
 )
 
 
@@ -194,3 +195,91 @@ class TestParseGroupsConfig:
         }))
         with pytest.raises(ValueError, match="Invalid role"):
             parse_groups_config(cfg)
+
+
+class TestLoadMetadata:
+    def test_loads_valid_metadata(self, data_dir):
+        meta = load_metadata(
+            data_dir / "brain_meta.csv",
+            data_feature_names=["x1", "x2", "x3", "x4", "x5"],
+        )
+        assert "feature" in meta.columns
+        assert len(meta) == 5
+
+    def test_feature_in_meta_not_in_data_raises(self, tmp_path):
+        meta_path = tmp_path / "meta.csv"
+        meta_path.write_text("feature,category\na,cat1\nb,cat2\nZZZ,cat3\n")
+        with pytest.raises(ValueError, match="ZZZ"):
+            load_metadata(meta_path, data_feature_names=["a", "b"])
+
+    def test_feature_in_data_not_in_meta_warns(self, tmp_path, caplog):
+        meta_path = tmp_path / "meta.csv"
+        meta_path.write_text("feature,category\na,cat1\n")
+        with caplog.at_level("WARNING", logger="plsdo"):
+            load_metadata(meta_path, data_feature_names=["a", "b"])
+        assert "b" in caplog.text
+        assert "not in metadata" in caplog.text.lower()
+
+
+class TestBuildDesignMatrix:
+    def test_single_factor(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2", "s3", "s4"],
+            "group": ["A", "A", "B", "B"],
+        })
+        config = GroupConfig.from_group_col("group")
+        X, labels = build_design_matrix(demo, config)
+        assert X.shape == (4, 2)  # 2 levels
+        assert labels == ["group_A", "group_B"]
+        # s1 and s2 should have [1, 0], s3 and s4 should have [0, 1]
+        np.testing.assert_array_equal(X[0], [1, 0])
+        np.testing.assert_array_equal(X[2], [0, 1])
+
+    def test_multiple_factors_additive(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2", "s3", "s4"],
+            "geno": ["WT", "WT", "KO", "KO"],
+            "drug": ["sal", "oxy", "sal", "oxy"],
+        })
+        config = GroupConfig(groups=[
+            GroupSpec(column="geno", role="x_axis"),
+            GroupSpec(column="drug", role="hue"),
+        ])
+        X, labels = build_design_matrix(demo, config)
+        # 2 levels for geno + 2 levels for drug = 4 columns
+        assert X.shape == (4, 4)
+        assert labels == ["geno_KO", "geno_WT", "drug_oxy", "drug_sal"]
+
+    def test_zero_variance_column_raises(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2"],
+            "group": ["A", "A"],  # only one level
+        })
+        config = GroupConfig.from_group_col("group")
+        with pytest.raises(ValueError, match="single level"):
+            build_design_matrix(demo, config)
+
+    def test_reference_level_ordering(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2", "s3"],
+            "group": ["B", "A", "C"],
+        })
+        config = GroupConfig(groups=[
+            GroupSpec(column="group", role="x_axis", reference="A",
+                      order=["A", "B", "C"]),
+        ])
+        X, labels = build_design_matrix(demo, config)
+        assert labels == ["group_A", "group_B", "group_C"]
+
+    def test_ignores_ignore_role(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2"],
+            "group": ["A", "B"],
+            "cage": [1, 2],
+        })
+        config = GroupConfig(groups=[
+            GroupSpec(column="group", role="x_axis"),
+            GroupSpec(column="cage", role="ignore"),
+        ])
+        X, labels = build_design_matrix(demo, config)
+        assert X.shape == (2, 2)  # only group, not cage

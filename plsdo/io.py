@@ -328,3 +328,111 @@ def parse_groups_config(
             )
 
     return config
+
+
+def load_metadata(
+    path: Path, data_feature_names: list[str]
+) -> pd.DataFrame:
+    """Load a feature metadata CSV and validate against data features.
+
+    Parameters
+    ----------
+    path : Path
+        Path to metadata CSV. Must have a 'feature' column.
+    data_feature_names : list of str
+        Feature names from the data matrix.
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    df = load_csv(path)
+    if "feature" not in df.columns:
+        raise ValueError(
+            f"Metadata file {path} must have a 'feature' column. "
+            f"Columns found: {list(df.columns)}"
+        )
+
+    meta_features = set(df["feature"])
+    data_features = set(data_feature_names)
+
+    # Features in metadata but not in data: error
+    extra = meta_features - data_features
+    if extra:
+        raise ValueError(
+            f"Features in metadata but not in data: {sorted(extra)}. "
+            f"Check for typos or stale metadata."
+        )
+
+    # Features in data but not in metadata: warning
+    missing = data_features - meta_features
+    if missing:
+        logger.warning(
+            "Features not in metadata (will not be colour-coded in plots): %s",
+            sorted(missing),
+        )
+
+    return df
+
+
+def build_design_matrix(
+    demographics: pd.DataFrame, config: GroupConfig
+) -> tuple[np.ndarray, list[str]]:
+    """Build an additive dummy-coded design matrix from group columns.
+
+    Parameters
+    ----------
+    demographics : DataFrame
+        Demographics data with group columns.
+    config : GroupConfig
+        Groups configuration specifying which columns to use.
+
+    Returns
+    -------
+    X : ndarray, shape (n_subjects, total_dummy_cols)
+        Concatenated dummy codes for all non-ignore group columns.
+    labels : list of str
+        Column labels for X (e.g. ['geno_WT', 'geno_KO', 'drug_sal']).
+    """
+    all_dummies = []
+    all_labels = []
+
+    for spec in config.groups:
+        if spec.role == "ignore":
+            continue
+
+        col = demographics[spec.column]
+        levels = col.unique()
+
+        if len(levels) < 2:
+            raise ValueError(
+                f"Group column '{spec.column}' has a single level "
+                f"('{levels[0]}'). Need at least 2 levels for "
+                f"discriminatory PLS."
+            )
+
+        # Determine level order
+        if spec.order is not None:
+            ordered_levels = spec.order
+        elif spec.order_by is not None:
+            order_df = (
+                demographics[[spec.column, spec.order_by]]
+                .drop_duplicates()
+                .sort_values(spec.order_by)
+            )
+            ordered_levels = order_df[spec.column].tolist()
+        elif spec.reference is not None:
+            others = sorted([lev for lev in levels if lev != spec.reference])
+            ordered_levels = [spec.reference] + others
+        else:
+            ordered_levels = sorted(levels)
+
+        # Dummy code
+        dummies = pd.get_dummies(col).reindex(columns=ordered_levels, fill_value=0)
+        labels = [f"{spec.column}_{level}" for level in ordered_levels]
+
+        all_dummies.append(dummies.to_numpy(dtype=float))
+        all_labels.extend(labels)
+
+    X = np.concatenate(all_dummies, axis=1)
+    return X, all_labels
