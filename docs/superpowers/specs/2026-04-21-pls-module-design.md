@@ -244,7 +244,7 @@ plot aesthetics (color-coding by category). Validation:
 ```
 pls/
   __init__.py
-  cli.py              -- click-based CLI entry point
+  cli.py              -- argparse-based CLI entry point
   core.py             -- PLS class: SVD, permutation, bootstrap, scoring
   cross_validate.py   -- CV logic, uses sklearn PLSRegression
   io.py               -- load CSVs, validate inputs, align subjects
@@ -516,19 +516,20 @@ dependencies = [
     "pandas",
     "matplotlib",
     "seaborn",
-    "scikit-learn",
-    "click",
     "pyyaml",
 ]
 
 [project.optional-dependencies]
+cv = [
+    "scikit-learn",
+]
 dev = [
     "pytest",
     "ruff",
 ]
 
 [project.scripts]
-pls = "pls.cli:main"
+pls = "pls.cli:pls_main"
 
 [build-system]
 requires = ["hatchling"]

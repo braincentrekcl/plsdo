@@ -4,9 +4,9 @@
 
 **Goal:** Build an installable Python CLI (`pls`) that performs correlational and discriminatory PLS analysis with permutation testing, bootstrap reliability, and cross-validation.
 
-**Architecture:** A `PLS` class in `core.py` handles SVD-based computation. `io.py` handles all input validation and preprocessing. `plotting.py` contains stateless plot functions. `cli.py` wires everything together via click subcommands. `cross_validate.py` handles CV using sklearn's PLSRegression.
+**Architecture:** A `PLS` class in `core.py` handles SVD-based computation. `io.py` handles all input validation and preprocessing. `plotting.py` contains stateless plot functions. `cli.py` wires everything together via argparse subcommands. `cross_validate.py` handles CV using sklearn's PLSRegression.
 
-**Tech Stack:** Python 3.10+, numpy, scipy, pandas, matplotlib, seaborn, scikit-learn, click, pyyaml, pytest, ruff, uv, hatchling.
+**Tech Stack:** Python 3.10+, numpy, scipy, pandas, matplotlib, seaborn, scikit-learn, pyyaml, pytest, ruff, uv, hatchling.
 
 **Reference implementations:** `correlational_pls.ipynb`, `discriminatory_pls.ipynb`, `claude_cross_validation.py` in the project root. Computational steps and plot styling must match these unless divergence is discussed with the user first.
 
@@ -22,7 +22,7 @@
 ```
 pls/
   __init__.py          -- version string, public imports
-  cli.py               -- click group with `run` and `cross-validate` subcommands
+  cli.py               -- argparse-based CLI with `run` and `cross-validate` subcommands
   core.py              -- PLS class: fit, permutation_test, bootstrap, filter_lvs
   cross_validate.py    -- run_cv() and permutation_test_cv() functions
   io.py                -- load_csv, validate_inputs, parse_groups_config,
@@ -75,19 +75,21 @@ dependencies = [
     "pandas",
     "matplotlib",
     "seaborn",
-    "scikit-learn",
-    "click",
     "pyyaml",
 ]
 
 [project.optional-dependencies]
+cv = [
+    "scikit-learn",
+]
 dev = [
     "pytest",
     "ruff",
+    "scikit-learn",
 ]
 
 [project.scripts]
-pls = "pls.cli:main"
+pls = "pls.cli:pls_main"
 
 [build-system]
 requires = ["hatchling"]
@@ -107,13 +109,16 @@ __version__ = "0.1.0"
 ```python
 """CLI entry point for PLS analysis."""
 
-import click
+import argparse
 
 
-@click.group()
-def main():
+def pls_main(argv=None):
     """PLS covariance analysis with statistical testing and visualisation."""
-    pass
+    parser = argparse.ArgumentParser(
+        description="PLS covariance analysis with statistical testing and visualisation."
+    )
+    subparsers = parser.add_subparsers(dest="command")
+    args = parser.parse_args(argv)
 ```
 
 `pls/core.py`:
@@ -2813,60 +2818,60 @@ feat: add CV accuracy, permutation, and confusion matrix plots
 Create `tests/test_cli.py`:
 ```python
 import pytest
-from click.testing import CliRunner
-from pls.cli import main
-
-
-@pytest.fixture
-def runner():
-    return CliRunner()
+from pls.cli import pls_main
 
 
 class TestRunValidation:
-    def test_method_required(self, runner, data_dir):
-        result = runner.invoke(main, [
-            "run",
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--output", "/tmp/pls_test",
-        ])
-        assert result.exit_code != 0
-        assert "method" in result.output.lower() or "Missing" in result.output
+    def test_method_required(self, data_dir):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "run",
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--output", "/tmp/pls_test",
+            ])
+        assert exc_info.value.code != 0
 
-    def test_method_c_without_x_errors(self, runner, data_dir, tmp_path):
-        result = runner.invoke(main, [
-            "run", "--method", "c",
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--output", str(tmp_path / "out"),
-        ])
-        assert result.exit_code != 0
-        assert "correlational PLS requires --x" in result.output
+    def test_method_c_without_x_errors(self, data_dir, tmp_path, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "run", "--method", "c",
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--output", str(tmp_path / "out"),
+            ])
+        assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        assert "correlational PLS requires --x" in captured.err
 
-    def test_method_d_with_x_errors(self, runner, data_dir, tmp_path):
-        result = runner.invoke(main, [
-            "run", "--method", "d",
-            "--x", str(data_dir / "x.csv"),
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--group-col", "group",
-            "--output", str(tmp_path / "out"),
-        ])
-        assert result.exit_code != 0
-        assert "do not provide --x" in result.output.lower()
+    def test_method_d_with_x_errors(self, data_dir, tmp_path, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "run", "--method", "d",
+                "--x", str(data_dir / "x.csv"),
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--group-col", "group",
+                "--output", str(tmp_path / "out"),
+            ])
+        assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        assert "do not provide --x" in captured.err.lower()
 
-    def test_method_d_without_group_col_errors(self, runner, data_dir, tmp_path):
-        result = runner.invoke(main, [
-            "run", "--method", "d",
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--output", str(tmp_path / "out"),
-        ])
-        assert result.exit_code != 0
-        assert "requires --group-col" in result.output.lower()
+    def test_method_d_without_group_col_errors(self, data_dir, tmp_path, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "run", "--method", "d",
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--output", str(tmp_path / "out"),
+            ])
+        assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        assert "requires --group-col" in captured.err.lower()
 
-    def test_method_accepts_case_insensitive(self, runner, data_dir, tmp_path):
-        result = runner.invoke(main, [
+    def test_method_accepts_case_insensitive(self, data_dir, tmp_path):
+        pls_main([
             "run", "--method", "Correlational",
             "--x", str(data_dir / "x.csv"),
             "--y", str(data_dir / "y.csv"),
@@ -2876,22 +2881,24 @@ class TestRunValidation:
             "--n-bootstraps", "10",
             "--subject-id", "subject_id",
         ])
-        assert result.exit_code == 0
+        assert (tmp_path / "out" / "data").exists()
 
     def test_group_col_and_groups_mutually_exclusive(
-        self, runner, data_dir, tmp_path
+        self, data_dir, tmp_path, capsys,
     ):
-        result = runner.invoke(main, [
-            "run", "--method", "c",
-            "--x", str(data_dir / "x.csv"),
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--group-col", "group",
-            "--groups", str(data_dir / "groups.yaml"),
-            "--output", str(tmp_path / "out"),
-        ])
-        assert result.exit_code != 0
-        assert "mutually exclusive" in result.output.lower()
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "run", "--method", "c",
+                "--x", str(data_dir / "x.csv"),
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--group-col", "group",
+                "--groups", str(data_dir / "groups.yaml"),
+                "--output", str(tmp_path / "out"),
+            ])
+        assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        assert "mutually exclusive" in captured.err.lower()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -2906,12 +2913,17 @@ Expected: FAIL — `run` command not registered
 ```python
 """CLI entry point for PLS analysis."""
 
-import click
+import argparse
+import logging
+import sys
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
 from pls.core import PLS
+
+logger = logging.getLogger("pls")
 from pls.io import (
     GroupConfig,
     align_subjects,
@@ -2962,89 +2974,136 @@ def _save_csv(data: np.ndarray, path: Path, columns=None, index=None):
     df.to_csv(path, index=index is not None)
 
 
-@click.group()
-def main():
-    """PLS covariance analysis with statistical testing and visualisation."""
-    pass
+def _error(message: str) -> None:
+    """Print error message to stderr and exit with code 2."""
+    print(f"error: {message}", file=sys.stderr)
+    sys.exit(2)
 
 
-@main.command()
-@click.option("--method", required=True, help="correlational/c or discriminatory/d")
-@click.option("--x", "x_path", type=click.Path(exists=True), default=None)
-@click.option("--y", "y_path", required=True, type=click.Path(exists=True))
-@click.option("--demographics", required=True, type=click.Path(exists=True))
-@click.option("--output", required=True, type=click.Path())
-@click.option("--group-col", default=None)
-@click.option("--groups", "groups_path", type=click.Path(exists=True), default=None)
-@click.option("--subject-id", default=None)
-@click.option("--x-meta", type=click.Path(exists=True), default=None)
-@click.option("--y-meta", type=click.Path(exists=True), default=None)
-@click.option("--n-perms", default=10000, type=int)
-@click.option("--n-bootstraps", default=10000, type=int)
-@click.option("--seed", default=42, type=int)
-@click.option("--verbose", is_flag=True, default=False)
-@click.option("--format", "img_format", default="svg", type=click.Choice(["svg", "png"]))
-@click.option("--dpi", default=300, type=int)
-def run(
-    method, x_path, y_path, demographics, output,
-    group_col, groups_path, subject_id,
-    x_meta, y_meta,
-    n_perms, n_bootstraps, seed, verbose, img_format, dpi,
-):
+def pls_main(argv=None):
+    """PLS covariance analysis with statistical testing and visualisation.
+
+    Args:
+        argv: Command-line arguments. None uses sys.argv (normal CLI usage);
+              pass a list for testing (e.g. pls_main(["run", "--method", "c", ...])).
+    """
+    parser = argparse.ArgumentParser(
+        prog="pls",
+        description="PLS covariance analysis with statistical testing and visualisation.",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    parser.add_argument("--verbose", "-v", action="store_true", default=False,
+                        help="Enable verbose logging output")
+
+    # --- pls run ---
+    run_parser = subparsers.add_parser("run", help="Run PLS analysis")
+    run_parser.add_argument("--method", "-m", required=True,
+                            help="correlational/c or discriminatory/d")
+    run_parser.add_argument("--x", dest="x_path", default=None,
+                            help="X matrix CSV (required for correlational)")
+    run_parser.add_argument("--y", dest="y_path", required=True,
+                            help="Y matrix CSV")
+    run_parser.add_argument("--demographics", required=True,
+                            help="Demographics CSV")
+    run_parser.add_argument("--output", required=True, help="Output directory")
+    run_parser.add_argument("--group-col", default=None,
+                            help="Group column name (shorthand for YAML)")
+    run_parser.add_argument("--groups", dest="groups_path", default=None,
+                            help="Groups YAML config file")
+    run_parser.add_argument("--subject-id", default=None,
+                            help="Subject ID column name")
+    run_parser.add_argument("--x-meta", default=None,
+                            help="X metadata CSV")
+    run_parser.add_argument("--y-meta", default=None,
+                            help="Y metadata CSV")
+    run_parser.add_argument("--n-perms", default=10000, type=int,
+                            help="Number of permutations (default: 10000)")
+    run_parser.add_argument("--n-bootstraps", default=10000, type=int,
+                            help="Number of bootstrap resamples (default: 10000)")
+    run_parser.add_argument("--seed", default=42, type=int,
+                            help="Random seed (default: 42)")
+    run_parser.add_argument("--all-plots", action="store_true", default=False,
+                            help="Generate all plots including LV heatmaps, "
+                                 "bootstrap ratio heatmaps, and diagnostics")
+    run_parser.add_argument("--format", dest="img_format", default="svg",
+                            choices=["svg", "png"],
+                            help="Image format (default: svg)")
+    run_parser.add_argument("--dpi", default=300, type=int,
+                            help="Image DPI (default: 300)")
+
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
+
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
+    elif args.command == "run":
+        _cmd_run(args)
+    elif args.command == "cross-validate":
+        _cmd_cross_validate(args)
+
+
+def _cmd_run(args):
     """Run PLS analysis."""
     # --- Resolve method ---
-    method_lower = method.lower()
+    method_lower = args.method.lower()
     if method_lower not in METHOD_ALIASES:
-        raise click.UsageError(
-            f"Unknown method '{method}'. "
+        _error(
+            f"Unknown method '{args.method}'. "
             f"Use correlational/c or discriminatory/d."
         )
     method_name = METHOD_ALIASES[method_lower]
 
     # --- Validate method-specific constraints ---
-    if method_name == "correlational" and x_path is None:
-        raise click.UsageError("Correlational PLS requires --x.")
-    if method_name == "discriminatory" and x_path is not None:
-        raise click.UsageError(
+    if method_name == "correlational" and args.x_path is None:
+        _error("Correlational PLS requires --x.")
+    if method_name == "discriminatory" and args.x_path is not None:
+        _error(
             "Discriminatory PLS builds X from --group-col. "
             "Do not provide --x."
         )
-    if method_name == "discriminatory" and group_col is None and groups_path is None:
-        raise click.UsageError(
+    if method_name == "discriminatory" and args.group_col is None and args.groups_path is None:
+        _error(
             "Discriminatory PLS requires --group-col or --groups."
         )
-    if group_col is not None and groups_path is not None:
-        raise click.UsageError(
+    if args.group_col is not None and args.groups_path is not None:
+        _error(
             "--group-col and --groups are mutually exclusive."
         )
 
     # --- Set up output directory ---
-    output_dir = Path(output)
+    output_dir = Path(args.output)
     figures_dir = output_dir / "figures"
     data_dir = output_dir / "data"
     figures_dir.mkdir(parents=True, exist_ok=True)
     data_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Parse groups config ---
-    demographics_df = load_csv(Path(demographics))
+    demographics_df = load_csv(Path(args.demographics))
+    subject_id = args.subject_id
 
-    if groups_path is not None:
+    if args.groups_path is not None:
         config = parse_groups_config(
-            Path(groups_path), demographics_df=demographics_df
+            Path(args.groups_path), demographics_df=demographics_df
         )
         if config.subject_id:
             subject_id = config.subject_id
-    elif group_col is not None:
-        config = GroupConfig.from_group_col(group_col, subject_id=subject_id)
+    elif args.group_col is not None:
+        config = GroupConfig.from_group_col(args.group_col, subject_id=subject_id)
     else:
         config = None
 
     # --- Load and validate data ---
-    y_df = load_csv(Path(y_path), require_numeric=True)
+    y_df = load_csv(Path(args.y_path), require_numeric=True)
     dfs_to_align = [y_df, demographics_df]
 
     if method_name == "correlational":
-        x_df = load_csv(Path(x_path), require_numeric=True)
+        x_df = load_csv(Path(args.x_path), require_numeric=True)
         dfs_to_align.insert(0, x_df)
 
     sid = detect_subject_id(dfs_to_align, subject_id=subject_id)
@@ -3079,14 +3138,14 @@ def run(
         Y = zscore_columns(Y_raw)
 
     # --- Load metadata if provided ---
-    x_meta_df = load_metadata(Path(x_meta), x_feature_names) if x_meta else None
-    y_meta_df = load_metadata(Path(y_meta), y_feature_names) if y_meta else None
+    x_meta_df = load_metadata(Path(args.x_meta), x_feature_names) if args.x_meta else None
+    y_meta_df = load_metadata(Path(args.y_meta), y_feature_names) if args.y_meta else None
 
     # --- Run PLS ---
-    model = PLS(X, Y, seed=seed)
+    model = PLS(X, Y, seed=args.seed)
     model.fit()
-    model.permutation_test(n_perms=n_perms)
-    model.bootstrap(n_bootstraps=n_bootstraps)
+    model.permutation_test(n_perms=args.n_perms)
+    model.bootstrap(n_bootstraps=args.n_bootstraps)
     model.filter_lvs()
 
     # --- Save data CSVs ---
@@ -3123,7 +3182,7 @@ def run(
     scores_df.to_csv(data_dir / "subject_scores.csv")
 
     # --- Generate plots ---
-    ext = img_format
+    ext = args.img_format
 
     # 1. Cross-correlation heatmap
     plot_heatmap(
@@ -3131,14 +3190,14 @@ def run(
         xticklabels=y_feature_names,
         yticklabels=x_feature_names,
         out_path=figures_dir / f"cross_correlation.{ext}",
-        dpi=dpi,
+        dpi=args.dpi,
     )
 
     # 2. Permutation test
     plot_permutation(
         model.s, model.permuted_singular_values, model.p_values,
         out_path=figures_dir / f"permutation_test.{ext}",
-        dpi=dpi,
+        dpi=args.dpi,
     )
 
     # 3. Loading bar plots for final LVs
@@ -3166,7 +3225,7 @@ def run(
             lv_name=lv_name,
             out_path=figures_dir / f"{lv_name}_x_loadings.{ext}",
             colours=x_colours,
-            dpi=dpi,
+            dpi=args.dpi,
         )
 
         y_colours = None
@@ -3190,7 +3249,7 @@ def run(
             lv_name=lv_name,
             out_path=figures_dir / f"{lv_name}_y_loadings.{ext}",
             colours=y_colours,
-            dpi=dpi,
+            dpi=args.dpi,
         )
 
     # 4. Subject score box/strip plots
@@ -3239,7 +3298,7 @@ def run(
                     col_col="LV",
                     hue_col=hue_col,
                     out_path=figures_dir / f"{score_side}_scores_boxplot.{ext}",
-                    dpi=dpi,
+                    dpi=args.dpi,
                 )
 
     # 5. Score scatter (correlational only)
@@ -3267,32 +3326,32 @@ def run(
                 hue_col=hue_col or sid,
                 lv_name=lv_name,
                 out_path=figures_dir / f"{lv_name}_scores_scatter.{ext}",
-                dpi=dpi,
+                dpi=args.dpi,
             )
 
     # --- Write log ---
     _write_log(output_dir, {
         "method": method_name,
-        "x": x_path,
-        "y": y_path,
-        "demographics": demographics,
-        "group_col": group_col,
-        "groups": groups_path,
+        "x": args.x_path,
+        "y": args.y_path,
+        "demographics": args.demographics,
+        "group_col": args.group_col,
+        "groups": args.groups_path,
         "subject_id": sid,
-        "n_perms": n_perms,
-        "n_bootstraps": n_bootstraps,
-        "seed": seed,
-        "verbose": verbose,
-        "format": img_format,
-        "dpi": dpi,
+        "n_perms": args.n_perms,
+        "n_bootstraps": args.n_bootstraps,
+        "seed": args.seed,
+        "all_plots": args.all_plots,
+        "format": args.img_format,
+        "dpi": args.dpi,
         "n_subjects": len(subject_ids),
         "n_x_features": len(x_feature_names),
         "n_y_features": len(y_feature_names),
         "significant_lvs": final_lv_names,
     })
 
-    click.echo(f"PLS analysis complete. Results saved to: {output_dir}")
-    click.echo(f"Significant and reliable LVs: {final_lv_names}")
+    logger.info("PLS analysis complete. Results saved to: %s", output_dir)
+    logger.info("Significant and reliable LVs: %s", final_lv_names)
 ```
 
 Note: add `import seaborn as sns` to the import block in `cli.py`.
@@ -3339,18 +3398,19 @@ feat: add pls run CLI command with full pipeline
 Append to `tests/test_cli.py`:
 ```python
 class TestCrossValidate:
-    def test_requires_group_col(self, runner, data_dir, tmp_path):
-        result = runner.invoke(main, [
-            "cross-validate",
-            "--y", str(data_dir / "y.csv"),
-            "--demographics", str(data_dir / "demographics.csv"),
-            "--output", str(tmp_path / "cv_out"),
-        ])
-        assert result.exit_code != 0
+    def test_requires_group_col(self, data_dir, tmp_path):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main([
+                "cross-validate",
+                "--y", str(data_dir / "y.csv"),
+                "--demographics", str(data_dir / "demographics.csv"),
+                "--output", str(tmp_path / "cv_out"),
+            ])
+        assert exc_info.value.code != 0
 
-    def test_runs_successfully(self, runner, data_dir, tmp_path):
+    def test_runs_successfully(self, data_dir, tmp_path):
         out = tmp_path / "cv_out"
-        result = runner.invoke(main, [
+        pls_main([
             "cross-validate",
             "--y", str(data_dir / "y.csv"),
             "--demographics", str(data_dir / "demographics.csv"),
@@ -3361,7 +3421,6 @@ class TestCrossValidate:
             "--n-repeats", "2",
             "--n-permutations", "10",
         ])
-        assert result.exit_code == 0, result.output
         assert (out / "figures").exists()
         assert (out / "data").exists()
         assert (out / "log.txt").exists()
@@ -3375,45 +3434,59 @@ Expected: FAIL — `cross-validate` command not registered
 
 - [ ] **Step 3: Implement `pls cross-validate` command**
 
-Add to `pls/cli.py`:
+Add the `cross-validate` subparser to `pls_main()`, before `args = parser.parse_args(argv)`:
+```python
+    # --- pls cross-validate ---
+    cv_parser = subparsers.add_parser("cross-validate",
+                                       help="Cross-validate discriminatory PLS model")
+    cv_parser.add_argument("--y", dest="y_path", required=True,
+                           help="Y matrix CSV")
+    cv_parser.add_argument("--demographics", required=True,
+                           help="Demographics CSV")
+    cv_parser.add_argument("--output", required=True, help="Output directory")
+    cv_parser.add_argument("--group-col", required=True,
+                           help="Group column name")
+    cv_parser.add_argument("--subject-id", default=None,
+                           help="Subject ID column name")
+    cv_parser.add_argument("--n-folds", default=5, type=int,
+                           help="Number of CV folds (default: 5)")
+    cv_parser.add_argument("--n-repeats", default=100, type=int,
+                           help="Number of CV repeats (default: 100)")
+    cv_parser.add_argument("--n-components", default=None, type=int,
+                           help="Number of PLS components (default: n_groups - 1)")
+    cv_parser.add_argument("--n-permutations", default=1000, type=int,
+                           help="Number of permutations for CV test (default: 1000)")
+    cv_parser.add_argument("--seed", default=42, type=int,
+                           help="Random seed (default: 42)")
+    cv_parser.add_argument("--format", dest="img_format", default="svg",
+                           choices=["svg", "png"],
+                           help="Image format (default: svg)")
+    cv_parser.add_argument("--dpi", default=300, type=int,
+                           help="Image DPI (default: 300)")
+```
+
+Add to `pls/cli.py` — the `_cmd_cross_validate` function and its imports:
 ```python
 from pls.cross_validate import run_cv, permutation_test_cv
 from pls.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix
 
 
-@main.command(name="cross-validate")
-@click.option("--y", "y_path", required=True, type=click.Path(exists=True))
-@click.option("--demographics", required=True, type=click.Path(exists=True))
-@click.option("--output", required=True, type=click.Path())
-@click.option("--group-col", required=True)
-@click.option("--subject-id", default=None)
-@click.option("--n-folds", default=5, type=int)
-@click.option("--n-repeats", default=100, type=int)
-@click.option("--n-components", default=None, type=int)
-@click.option("--n-permutations", default=1000, type=int)
-@click.option("--seed", default=42, type=int)
-@click.option("--format", "img_format", default="svg", type=click.Choice(["svg", "png"]))
-@click.option("--dpi", default=300, type=int)
-def cross_validate(
-    y_path, demographics, output, group_col, subject_id,
-    n_folds, n_repeats, n_components, n_permutations, seed,
-    img_format, dpi,
-):
+def _cmd_cross_validate(args):
     """Cross-validate discriminatory PLS model."""
     # --- Set up output ---
-    output_dir = Path(output)
+    output_dir = Path(args.output)
     figures_dir = output_dir / "figures"
     data_dir_out = output_dir / "data"
     figures_dir.mkdir(parents=True, exist_ok=True)
     data_dir_out.mkdir(parents=True, exist_ok=True)
 
     # --- Load and validate ---
-    y_df = load_csv(Path(y_path), require_numeric=True)
-    demographics_df = load_csv(Path(demographics))
-    config = GroupConfig.from_group_col(group_col, subject_id=subject_id)
+    y_df = load_csv(Path(args.y_path), require_numeric=True)
+    demographics_df = load_csv(Path(args.demographics))
+    config = GroupConfig.from_group_col(args.group_col, subject_id=args.subject_id)
 
     sid = detect_subject_id(
-        [y_df, demographics_df], subject_id=subject_id
+        [y_df, demographics_df], subject_id=args.subject_id
     )
     y_aligned, demo_aligned = align_subjects(
         [y_df, demographics_df], subject_id=sid
@@ -3425,36 +3498,37 @@ def cross_validate(
     Y = y_aligned[y_feature_names].to_numpy(dtype=float)
 
     # Build group labels
-    labels_series = demo_aligned[group_col].astype("category")
+    labels_series = demo_aligned[args.group_col].astype("category")
     label_names = labels_series.cat.categories.tolist()
     labels = labels_series.cat.codes.values
     n_groups = len(label_names)
 
+    n_components = args.n_components
     if n_components is None:
         n_components = n_groups - 1
 
     # --- Run CV ---
-    click.echo(f"Running {n_folds}-fold CV with {n_repeats} repeats...")
+    logger.info("Running %d-fold CV with %d repeats...", args.n_folds, args.n_repeats)
     cv_result = run_cv(
         Y, labels,
-        n_splits=n_folds, n_repeats=n_repeats,
-        n_components=n_components, seed=seed,
+        n_splits=args.n_folds, n_repeats=args.n_repeats,
+        n_components=n_components, seed=args.seed,
     )
 
-    click.echo(f"Mean accuracy: {cv_result['mean_accuracy']:.3f}")
-    click.echo(f"Chance level: {1/n_groups:.3f}")
+    logger.info("Mean accuracy: %.3f", cv_result["mean_accuracy"])
+    logger.info("Chance level: %.3f", 1 / n_groups)
 
     # --- Permutation test ---
-    click.echo(f"Running permutation test ({n_permutations} permutations)...")
+    logger.info("Running permutation test (%d permutations)...", args.n_permutations)
     perm_result = permutation_test_cv(
         Y, labels,
         observed_accuracy=cv_result["mean_accuracy"],
-        n_splits=n_folds, n_repeats=1,
+        n_splits=args.n_folds, n_repeats=1,
         n_components=n_components,
-        n_permutations=n_permutations, seed=seed,
+        n_permutations=args.n_permutations, seed=args.seed,
     )
 
-    click.echo(f"Permutation p-value: {perm_result['p_value']:.4f}")
+    logger.info("Permutation p-value: %.4f", perm_result["p_value"])
 
     # --- Save data ---
     cv_result["fold_results"].to_csv(
@@ -3465,7 +3539,7 @@ def cross_validate(
     )
 
     # --- Plots ---
-    ext = img_format
+    ext = args.img_format
     chance = 1 / n_groups
 
     plot_cv_accuracy(
@@ -3473,7 +3547,7 @@ def cross_validate(
         mean_accuracy=cv_result["mean_accuracy"],
         chance_level=chance,
         out_path=figures_dir / f"cv_fold_accuracy.{ext}",
-        dpi=dpi,
+        dpi=args.dpi,
     )
 
     plot_cv_permutation(
@@ -3481,7 +3555,7 @@ def cross_validate(
         observed_accuracy=cv_result["mean_accuracy"],
         p_value=perm_result["p_value"],
         out_path=figures_dir / f"cv_permutation_test.{ext}",
-        dpi=dpi,
+        dpi=args.dpi,
     )
 
     plot_confusion_matrix(
@@ -3489,21 +3563,21 @@ def cross_validate(
         label_names=label_names,
         mean_accuracy=cv_result["mean_accuracy"],
         out_path=figures_dir / f"cv_confusion_matrix.{ext}",
-        dpi=dpi,
+        dpi=args.dpi,
     )
 
     # --- Log ---
     _write_log(output_dir, {
         "command": "cross-validate",
-        "y": y_path,
-        "demographics": demographics,
-        "group_col": group_col,
+        "y": args.y_path,
+        "demographics": args.demographics,
+        "group_col": args.group_col,
         "subject_id": sid,
-        "n_folds": n_folds,
-        "n_repeats": n_repeats,
+        "n_folds": args.n_folds,
+        "n_repeats": args.n_repeats,
         "n_components": n_components,
-        "n_permutations": n_permutations,
-        "seed": seed,
+        "n_permutations": args.n_permutations,
+        "seed": args.seed,
         "n_subjects": len(Y),
         "n_groups": n_groups,
         "group_names": label_names,
@@ -3511,7 +3585,7 @@ def cross_validate(
         "permutation_p_value": f"{perm_result['p_value']:.4f}",
     })
 
-    click.echo(f"Cross-validation complete. Results saved to: {output_dir}")
+    logger.info("Cross-validation complete. Results saved to: %s", output_dir)
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
