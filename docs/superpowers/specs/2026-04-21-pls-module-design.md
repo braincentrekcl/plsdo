@@ -22,11 +22,11 @@ need to choose a variant -- what they pass as X determines the behavior.
 
 Two subcommands:
 
-### `pls run` -- inference
+### `plsdo run` -- inference
 
 ```
 # Correlational PLS (two continuous matrices):
-pls run --method c \
+plsdo run --method c \
   --x X.csv \
   --y Y.csv \
   --demographics demo.csv \
@@ -35,7 +35,7 @@ pls run --method c \
   --seed 42
 
 # Discriminatory PLS (design matrix built from group column):
-pls run --method d \
+plsdo run --method d \
   --y Y.csv \
   --demographics demo.csv \
   --group-col Drug \
@@ -43,7 +43,7 @@ pls run --method d \
   --seed 42
 
 # With optional metadata and multi-group config:
-pls run --method correlational \
+plsdo run --method correlational \
   --x X.csv \
   --y Y.csv \
   --demographics demo.csv \
@@ -90,10 +90,10 @@ CLI validation:
 - `--method d` without `--group-col`: error ("discriminatory PLS requires
   --group-col")
 
-### `pls cross-validate` -- internal validation
+### `plsdo cross-validate` -- internal validation
 
 ```
-pls cross-validate \
+plsdo cross-validate \
   --y Y.csv \
   --demographics demo.csv \
   --group-col Drug \
@@ -117,7 +117,7 @@ Parameters:
 - `--n-permutations`: permutations for CV significance test (default 1000)
 
 CV uses all components by default. Users must not set `--n-components` based
-on results from `pls run` -- this introduces circularity. The documentation
+on results from `plsdo run` -- this introduces circularity. The documentation
 must state this explicitly.
 
 Internally, the CV uses Y as the predictor (what we observe for a new subject)
@@ -242,7 +242,7 @@ plot aesthetics (color-coding by category). Validation:
 ## Package Structure
 
 ```
-pls/
+plsdo/
   __init__.py
   cli.py              -- argparse-based CLI entry point
   core.py             -- PLS class: SVD, permutation, bootstrap, scoring
@@ -339,7 +339,7 @@ For each fold:
 5. Classify by argmax of predicted dummy vector.
 
 Uses all components (n_groups - 1) by default. Does not use permutation or
-bootstrap results from `pls run` -- this avoids circularity.
+bootstrap results from `plsdo run` -- this avoids circularity.
 
 Permutation test of CV accuracy: shuffle group labels, repeat full CV, build
 null distribution of accuracy.
@@ -362,7 +362,7 @@ def figure_size(n_rows, n_cols, cell_size=0.5, min_dim=4, max_dim=40):
 
 Heatmap annotations are suppressed when either axis exceeds 30 features.
 
-### Core plots (`pls run`)
+### Core plots (`plsdo run`)
 
 1. **Cross-correlation heatmap**: R matrix, X features as rows, Y as columns.
    Color-coded side bars if metadata provided.
@@ -385,20 +385,20 @@ Method-specific plot behavior:
   less informative with few groups. Always produced, but the user should
   interpret accordingly. Score scatter plots are not produced.
 
-### Core plots (`pls cross-validate`)
+### Core plots (`plsdo cross-validate`)
 
 1. **Fold accuracy histogram**: per-fold accuracies with mean and chance.
 2. **Permutation null distribution**: observed accuracy vs null, with p-value.
 3. **Confusion matrix heatmap**: normalized by true class.
 
-### Verbose additions (`pls run`)
+### Verbose additions (`plsdo run`)
 
 - Latent variable heatmaps (rank-1 R reconstruction per LV)
 - Bootstrap ratio heatmaps for X and Y
 - Raw data distribution plots (z-scored features by group)
 - Singular value scree plot
 
-### Verbose additions (`pls cross-validate`)
+### Verbose additions (`plsdo cross-validate`)
 
 - Convergence plot (cumulative mean accuracy over repeats)
 - Configuration sweep comparison
@@ -409,7 +409,7 @@ SVG by default. PNG via `--format png`. DPI configurable (default 300).
 
 ## Output Structure
 
-### `pls run`
+### `plsdo run`
 
 ```
 {output}/
@@ -433,7 +433,7 @@ SVG by default. PNG via `--format png`. DPI configurable (default 300).
   log.txt
 ```
 
-### `pls cross-validate`
+### `plsdo cross-validate`
 
 ```
 {output}/
@@ -506,7 +506,7 @@ in the repository.
 
 ```toml
 [project]
-name = "pls"
+name = "plsdo"
 version = "0.1.0"
 description = "PLS covariance analysis with statistical testing and visualization"
 requires-python = ">=3.10"
@@ -529,7 +529,7 @@ dev = [
 ]
 
 [project.scripts]
-pls = "pls.cli:pls_main"
+plsdo = "plsdo.cli:pls_main"
 
 [build-system]
 requires = ["hatchling"]

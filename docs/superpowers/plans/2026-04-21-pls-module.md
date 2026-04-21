@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build an installable Python CLI (`pls`) that performs correlational and discriminatory PLS analysis with permutation testing, bootstrap reliability, and cross-validation.
+**Goal:** Build an installable Python CLI (`plsdo`) that performs correlational and discriminatory PLS analysis with permutation testing, bootstrap reliability, and cross-validation.
 
 **Architecture:** A `PLS` class in `core.py` handles SVD-based computation. `io.py` handles all input validation and preprocessing. `plotting.py` contains stateless plot functions. `cli.py` wires everything together via argparse subcommands. `cross_validate.py` handles CV using sklearn's PLSRegression.
 
@@ -20,7 +20,7 @@
 ## File Map
 
 ```
-pls/
+plsdo/
   __init__.py          -- version string, public imports
   cli.py               -- argparse-based CLI with `run` and `cross-validate` subcommands
   core.py              -- PLS class: fit, permutation_test, bootstrap, filter_lvs
@@ -53,19 +53,19 @@ docs/
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `pls/__init__.py`
-- Create: `pls/cli.py` (stub)
-- Create: `pls/core.py` (stub)
-- Create: `pls/cross_validate.py` (stub)
-- Create: `pls/io.py` (stub)
-- Create: `pls/plotting.py` (stub)
+- Create: `plsdo/__init__.py`
+- Create: `plsdo/cli.py` (stub)
+- Create: `plsdo/core.py` (stub)
+- Create: `plsdo/cross_validate.py` (stub)
+- Create: `plsdo/io.py` (stub)
+- Create: `plsdo/plotting.py` (stub)
 - Create: `tests/conftest.py` (stub)
 
 - [ ] **Step 1: Create `pyproject.toml`**
 
 ```toml
 [project]
-name = "pls"
+name = "plsdo"
 version = "0.1.0"
 description = "PLS covariance analysis with statistical testing and visualisation"
 requires-python = ">=3.10"
@@ -89,7 +89,7 @@ dev = [
 ]
 
 [project.scripts]
-pls = "pls.cli:pls_main"
+plsdo = "plsdo.cli:pls_main"
 
 [build-system]
 requires = ["hatchling"]
@@ -98,14 +98,14 @@ build-backend = "hatchling.build"
 
 - [ ] **Step 2: Create package stubs**
 
-`pls/__init__.py`:
+`plsdo/__init__.py`:
 ```python
 """PLS covariance analysis with statistical testing and visualisation."""
 
 __version__ = "0.1.0"
 ```
 
-`pls/cli.py`:
+`plsdo/cli.py`:
 ```python
 """CLI entry point for PLS analysis."""
 
@@ -121,22 +121,22 @@ def pls_main(argv=None):
     args = parser.parse_args(argv)
 ```
 
-`pls/core.py`:
+`plsdo/core.py`:
 ```python
 """Core PLS computation: SVD, permutation testing, bootstrap reliability."""
 ```
 
-`pls/cross_validate.py`:
+`plsdo/cross_validate.py`:
 ```python
 """Cross-validation for discriminatory PLS."""
 ```
 
-`pls/io.py`:
+`plsdo/io.py`:
 ```python
 """Input loading, validation, and preprocessing."""
 ```
 
-`pls/plotting.py`:
+`plsdo/plotting.py`:
 ```python
 """Stateless plot functions for PLS results."""
 ```
@@ -157,11 +157,11 @@ uv pip install -e ".[dev]"
 
 - [ ] **Step 4: Verify CLI stub works**
 
-Run: `pls --help`
+Run: `plsdo --help`
 
 Expected:
 ```
-Usage: pls [OPTIONS] COMMAND [ARGS]...
+Usage: plsdo [OPTIONS] COMMAND [ARGS]...
 
   PLS covariance analysis with statistical testing and visualisation.
 
@@ -178,7 +178,7 @@ Expected: `no tests ran` (no error)
 - [ ] **Step 6: Commit**
 
 ```
-chore: scaffold pls package with pyproject.toml and module stubs
+chore: scaffold plsdo package with pyproject.toml and module stubs
 ```
 
 ---
@@ -388,7 +388,7 @@ test: add synthetic test data and shared fixtures
 ### Task 3: IO — CSV Loading and File Validation
 
 **Files:**
-- Create: `pls/io.py`
+- Create: `plsdo/io.py`
 - Create: `tests/test_io.py`
 
 - [ ] **Step 1: Write failing tests for file validation**
@@ -398,7 +398,7 @@ test: add synthetic test data and shared fixtures
 import pandas as pd
 import pytest
 from pathlib import Path
-from pls.io import load_csv
+from plsdo.io import load_csv
 
 
 class TestLoadCsv:
@@ -438,7 +438,7 @@ Expected: FAIL — `ImportError: cannot import name 'load_csv'`
 
 - [ ] **Step 3: Implement `load_csv`**
 
-`pls/io.py`:
+`plsdo/io.py`:
 ```python
 """Input loading, validation, and preprocessing."""
 
@@ -508,14 +508,14 @@ feat: add CSV loading with file validation
 ### Task 4: IO — Subject ID Detection and Alignment
 
 **Files:**
-- Modify: `pls/io.py`
+- Modify: `plsdo/io.py`
 - Modify: `tests/test_io.py`
 
 - [ ] **Step 1: Write failing tests for subject ID detection**
 
 Append to `tests/test_io.py`:
 ```python
-from pls.io import detect_subject_id, align_subjects
+from plsdo.io import detect_subject_id, align_subjects
 
 
 class TestDetectSubjectId:
@@ -581,7 +581,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement `detect_subject_id` and `align_subjects`**
 
-Add to `pls/io.py`:
+Add to `plsdo/io.py`:
 ```python
 from typing import Optional
 
@@ -701,7 +701,7 @@ feat: add subject ID detection and cross-file alignment
 ### Task 5: IO — Variance Checks and Z-Scoring
 
 **Files:**
-- Modify: `pls/io.py`
+- Modify: `plsdo/io.py`
 - Modify: `tests/test_io.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -709,7 +709,7 @@ feat: add subject ID detection and cross-file alignment
 Append to `tests/test_io.py`:
 ```python
 import numpy as np
-from pls.io import check_missing_values, check_variance, zscore_columns
+from plsdo.io import check_missing_values, check_variance, zscore_columns
 
 
 class TestCheckMissingValues:
@@ -773,7 +773,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement validation and z-scoring functions**
 
-Add to `pls/io.py`:
+Add to `plsdo/io.py`:
 ```python
 import numpy as np
 from scipy.stats import zscore
@@ -875,7 +875,7 @@ feat: add missing value checks, variance checks, and z-scoring
 ### Task 6: IO — YAML Groups Config Parsing
 
 **Files:**
-- Modify: `pls/io.py`
+- Modify: `plsdo/io.py`
 - Modify: `tests/test_io.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -883,7 +883,7 @@ feat: add missing value checks, variance checks, and z-scoring
 Append to `tests/test_io.py`:
 ```python
 import yaml
-from pls.io import parse_groups_config, GroupConfig
+from plsdo.io import parse_groups_config, GroupConfig
 
 
 class TestParseGroupsConfig:
@@ -943,7 +943,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement groups config parsing**
 
-Add to `pls/io.py`:
+Add to `plsdo/io.py`:
 ```python
 import yaml
 from dataclasses import dataclass, field
@@ -1062,14 +1062,14 @@ feat: add YAML groups config parsing with validation
 ### Task 7: IO — Metadata Loading and Discriminatory Dummy Coding
 
 **Files:**
-- Modify: `pls/io.py`
+- Modify: `plsdo/io.py`
 - Modify: `tests/test_io.py`
 
 - [ ] **Step 1: Write failing tests for metadata**
 
 Append to `tests/test_io.py`:
 ```python
-from pls.io import load_metadata, build_design_matrix
+from plsdo.io import load_metadata, build_design_matrix
 
 
 class TestLoadMetadata:
@@ -1168,7 +1168,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement metadata loading and design matrix building**
 
-Add to `pls/io.py`:
+Add to `plsdo/io.py`:
 ```python
 def load_metadata(
     path: Path, data_feature_names: list[str]
@@ -1295,7 +1295,7 @@ feat: add metadata loading and discriminatory design matrix building
 ### Task 8: Core PLS — fit()
 
 **Files:**
-- Modify: `pls/core.py`
+- Modify: `plsdo/core.py`
 - Create: `tests/test_core.py`
 
 - [ ] **Step 1: Write failing tests for fit**
@@ -1304,12 +1304,12 @@ feat: add metadata loading and discriminatory design matrix building
 ```python
 import numpy as np
 import pytest
-from pls.core import PLS
+from plsdo.core import PLS
 
 
 class TestPLSFit:
     def test_fit_stores_results(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1330,7 +1330,7 @@ class TestPLSFit:
         assert model.y_scores.shape == (n_subjects, n_components)
 
     def test_cross_correlation_formula(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1341,7 +1341,7 @@ class TestPLSFit:
         np.testing.assert_allclose(model.xcorr, expected)
 
     def test_loadings_are_scaled_vectors(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1354,7 +1354,7 @@ class TestPLSFit:
         np.testing.assert_allclose(model.vt_loadings, expected_vt_load)
 
     def test_scores_are_projections(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1365,7 +1365,7 @@ class TestPLSFit:
         np.testing.assert_allclose(model.y_scores, Y @ model.vt.T)
 
     def test_singular_values_descending(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1385,7 +1385,7 @@ Expected: FAIL — `ImportError: cannot import name 'PLS'`
 
 - [ ] **Step 3: Implement PLS class with fit()**
 
-`pls/core.py`:
+`plsdo/core.py`:
 ```python
 """Core PLS computation: SVD, permutation testing, bootstrap reliability."""
 
@@ -1463,7 +1463,7 @@ feat: add PLS class with SVD-based fit
 ### Task 9: Core PLS — Permutation Test
 
 **Files:**
-- Modify: `pls/core.py`
+- Modify: `plsdo/core.py`
 - Modify: `tests/test_core.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -1472,7 +1472,7 @@ Append to `tests/test_core.py`:
 ```python
 class TestPermutationTest:
     def _fitted_model(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1481,7 +1481,7 @@ class TestPermutationTest:
         return model
 
     def test_before_fit_raises(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         model = PLS(zscore_columns(x_array), zscore_columns(y_array))
         with pytest.raises(RuntimeError, match="fit"):
@@ -1503,7 +1503,7 @@ class TestPermutationTest:
         assert np.all(model.p_values <= 1.0)
 
     def test_seed_reproducibility(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1530,7 +1530,7 @@ Expected: FAIL — `AttributeError: 'PLS' object has no attribute 'permutation_t
 
 - [ ] **Step 3: Implement permutation_test**
 
-Add to `PLS` class in `pls/core.py`:
+Add to `PLS` class in `plsdo/core.py`:
 ```python
     def permutation_test(self, n_perms: int = 10000) -> None:
         """Test significance of singular values by permutation.
@@ -1581,7 +1581,7 @@ feat: add permutation testing for singular value significance
 ### Task 10: Core PLS — Bootstrap with Procrustes
 
 **Files:**
-- Modify: `pls/core.py`
+- Modify: `plsdo/core.py`
 - Modify: `tests/test_core.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -1590,7 +1590,7 @@ Append to `tests/test_core.py`:
 ```python
 class TestBootstrap:
     def _fitted_model(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1599,7 +1599,7 @@ class TestBootstrap:
         return model
 
     def test_before_fit_raises(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         model = PLS(zscore_columns(x_array), zscore_columns(y_array))
         with pytest.raises(RuntimeError, match="fit"):
@@ -1629,7 +1629,7 @@ class TestBootstrap:
         np.testing.assert_allclose(model.vt_bootstrap_ratios, expected_vt_bsr)
 
     def test_seed_reproducibility(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
         Y = zscore_columns(y_array)
@@ -1655,9 +1655,9 @@ Expected: FAIL — `AttributeError`
 
 - [ ] **Step 3: Implement bootstrap**
 
-Add to `PLS` class in `pls/core.py` (also add import at top of file:
+Add to `PLS` class in `plsdo/core.py` (also add import at top of file:
 `from scipy.linalg import orthogonal_procrustes` and
-`from pls.io import zscore_columns`):
+`from plsdo.io import zscore_columns`):
 
 ```python
     def bootstrap(self, n_bootstraps: int = 10000) -> None:
@@ -1735,7 +1735,7 @@ feat: add bootstrap reliability with Procrustes alignment
 ### Task 11: Core PLS — LV Filtering
 
 **Files:**
-- Modify: `pls/core.py`
+- Modify: `plsdo/core.py`
 - Modify: `tests/test_core.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -1744,7 +1744,7 @@ Append to `tests/test_core.py`:
 ```python
 class TestFilterLVs:
     def test_before_permutation_raises(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         model = PLS(zscore_columns(x_array), zscore_columns(y_array))
         model.fit()
@@ -1752,7 +1752,7 @@ class TestFilterLVs:
             model.filter_lvs()
 
     def test_before_bootstrap_raises(self, x_array, y_array):
-        from pls.io import zscore_columns
+        from plsdo.io import zscore_columns
 
         model = PLS(zscore_columns(x_array), zscore_columns(y_array), seed=42)
         model.fit()
@@ -1800,7 +1800,7 @@ Expected: FAIL — `AttributeError`
 
 - [ ] **Step 3: Implement filter_lvs**
 
-Add to `PLS` class in `pls/core.py`:
+Add to `PLS` class in `plsdo/core.py`:
 ```python
     def filter_lvs(self, bsr_threshold: float = 1.96) -> None:
         """Filter latent variables by significance and reliability.
@@ -1856,7 +1856,7 @@ feat: add latent variable filtering by significance and reliability
 ### Task 12: Cross-Validation
 
 **Files:**
-- Modify: `pls/cross_validate.py`
+- Modify: `plsdo/cross_validate.py`
 - Create: `tests/test_cross_validate.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -1865,7 +1865,7 @@ feat: add latent variable filtering by significance and reliability
 ```python
 import numpy as np
 import pytest
-from pls.cross_validate import run_cv, permutation_test_cv
+from plsdo.cross_validate import run_cv, permutation_test_cv
 
 
 class TestRunCV:
@@ -1946,7 +1946,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement cross-validation**
 
-`pls/cross_validate.py`:
+`plsdo/cross_validate.py`:
 ```python
 """Cross-validation for discriminatory PLS."""
 
@@ -2120,7 +2120,7 @@ feat: add cross-validation with permutation testing
 ### Task 13: Plotting — Utilities and Core Plots (Part 1)
 
 **Files:**
-- Modify: `pls/plotting.py`
+- Modify: `plsdo/plotting.py`
 - Create: `tests/test_plotting.py`
 
 - [ ] **Step 1: Write failing tests for utilities and heatmap**
@@ -2134,7 +2134,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from pathlib import Path
-from pls.plotting import figure_size, plot_heatmap, plot_permutation
+from plsdo.plotting import figure_size, plot_heatmap, plot_permutation
 
 
 class TestFigureSize:
@@ -2209,7 +2209,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement figure_size, plot_heatmap, plot_permutation**
 
-`pls/plotting.py`:
+`plsdo/plotting.py`:
 ```python
 """Stateless plot functions for PLS results."""
 
@@ -2369,14 +2369,14 @@ feat: add figure sizing, heatmap, and permutation plots
 ### Task 14: Plotting — Loading Bars, Box/Strip, and Score Scatter
 
 **Files:**
-- Modify: `pls/plotting.py`
+- Modify: `plsdo/plotting.py`
 - Modify: `tests/test_plotting.py`
 
 - [ ] **Step 1: Write failing tests**
 
 Append to `tests/test_plotting.py`:
 ```python
-from pls.plotting import plot_loadings, plot_scores_boxstrip, plot_scores_scatter
+from plsdo.plotting import plot_loadings, plot_scores_boxstrip, plot_scores_scatter
 
 
 class TestPlotLoadings:
@@ -2469,7 +2469,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement loading bars, box/strip, and scatter plots**
 
-Add to `pls/plotting.py`:
+Add to `plsdo/plotting.py`:
 ```python
 import pandas as pd
 
@@ -2658,14 +2658,14 @@ feat: add loading bar, box/strip, and score scatter plots
 ### Task 15: Plotting — CV Plots
 
 **Files:**
-- Modify: `pls/plotting.py`
+- Modify: `plsdo/plotting.py`
 - Modify: `tests/test_plotting.py`
 
 - [ ] **Step 1: Write failing tests**
 
 Append to `tests/test_plotting.py`:
 ```python
-from pls.plotting import (
+from plsdo.plotting import (
     plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix,
 )
 
@@ -2707,7 +2707,7 @@ Expected: FAIL — `ImportError`
 
 - [ ] **Step 3: Implement CV plot functions**
 
-Add to `pls/plotting.py`:
+Add to `plsdo/plotting.py`:
 ```python
 from sklearn.metrics import ConfusionMatrixDisplay
 
@@ -2807,10 +2807,10 @@ feat: add CV accuracy, permutation, and confusion matrix plots
 
 ---
 
-### Task 16: CLI — `pls run`
+### Task 16: CLI — `plsdo run`
 
 **Files:**
-- Modify: `pls/cli.py`
+- Modify: `plsdo/cli.py`
 - Modify: `tests/test_io.py` (add CLI integration tests)
 
 - [ ] **Step 1: Write failing tests for CLI validation**
@@ -2818,7 +2818,7 @@ feat: add CV accuracy, permutation, and confusion matrix plots
 Create `tests/test_cli.py`:
 ```python
 import pytest
-from pls.cli import pls_main
+from plsdo.cli import pls_main
 
 
 class TestRunValidation:
@@ -2907,9 +2907,9 @@ Run: `pytest tests/test_cli.py -v`
 
 Expected: FAIL — `run` command not registered
 
-- [ ] **Step 3: Implement `pls run` command**
+- [ ] **Step 3: Implement `plsdo run` command**
 
-`pls/cli.py`:
+`plsdo/cli.py`:
 ```python
 """CLI entry point for PLS analysis."""
 
@@ -2921,10 +2921,10 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from pls.core import PLS
+from plsdo.core import PLS
 
-logger = logging.getLogger("pls")
-from pls.io import (
+logger = logging.getLogger("plsdo")
+from plsdo.io import (
     GroupConfig,
     align_subjects,
     build_design_matrix,
@@ -2936,7 +2936,7 @@ from pls.io import (
     parse_groups_config,
     zscore_columns,
 )
-from pls.plotting import (
+from plsdo.plotting import (
     plot_heatmap,
     plot_loadings,
     plot_permutation,
@@ -2956,7 +2956,7 @@ METHOD_ALIASES = {
 def _write_log(output_dir: Path, params: dict) -> None:
     """Write a log.txt with run parameters."""
     from datetime import datetime
-    from pls import __version__
+    from plsdo import __version__
 
     log_path = output_dir / "log.txt"
     with open(log_path, "w") as f:
@@ -2988,7 +2988,7 @@ def pls_main(argv=None):
               pass a list for testing (e.g. pls_main(["run", "--method", "c", ...])).
     """
     parser = argparse.ArgumentParser(
-        prog="pls",
+        prog="plsdo",
         description="PLS covariance analysis with statistical testing and visualisation.",
     )
     subparsers = parser.add_subparsers(dest="command")
@@ -2996,7 +2996,7 @@ def pls_main(argv=None):
     parser.add_argument("--verbose", "-v", action="store_true", default=False,
                         help="Enable verbose logging output")
 
-    # --- pls run ---
+    # --- plsdo run ---
     run_parser = subparsers.add_parser("run", help="Run PLS analysis")
     run_parser.add_argument("--method", "-m", required=True,
                             help="correlational/c or discriminatory/d")
@@ -3366,7 +3366,7 @@ Expected: all tests PASS
 
 Run:
 ```bash
-pls run --method c \
+plsdo run --method c \
   --x tests/data/x.csv \
   --y tests/data/y.csv \
   --demographics tests/data/demographics.csv \
@@ -3382,15 +3382,15 @@ Expected: completes without error, outputs in `/tmp/pls_test_corr/`
 - [ ] **Step 6: Commit**
 
 ```
-feat: add pls run CLI command with full pipeline
+feat: add plsdo run CLI command with full pipeline
 ```
 
 ---
 
-### Task 17: CLI — `pls cross-validate`
+### Task 17: CLI — `plsdo cross-validate`
 
 **Files:**
-- Modify: `pls/cli.py`
+- Modify: `plsdo/cli.py`
 - Modify: `tests/test_cli.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -3432,11 +3432,11 @@ Run: `pytest tests/test_cli.py::TestCrossValidate -v`
 
 Expected: FAIL — `cross-validate` command not registered
 
-- [ ] **Step 3: Implement `pls cross-validate` command**
+- [ ] **Step 3: Implement `plsdo cross-validate` command**
 
 Add the `cross-validate` subparser to `pls_main()`, before `args = parser.parse_args(argv)`:
 ```python
-    # --- pls cross-validate ---
+    # --- plsdo cross-validate ---
     cv_parser = subparsers.add_parser("cross-validate",
                                        help="Cross-validate discriminatory PLS model")
     cv_parser.add_argument("--y", dest="y_path", required=True,
@@ -3465,10 +3465,10 @@ Add the `cross-validate` subparser to `pls_main()`, before `args = parser.parse_
                            help="Image DPI (default: 300)")
 ```
 
-Add to `pls/cli.py` — the `_cmd_cross_validate` function and its imports:
+Add to `plsdo/cli.py` — the `_cmd_cross_validate` function and its imports:
 ```python
-from pls.cross_validate import run_cv, permutation_test_cv
-from pls.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix
+from plsdo.cross_validate import run_cv, permutation_test_cv
+from plsdo.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix
 
 
 def _cmd_cross_validate(args):
@@ -3598,7 +3598,7 @@ Expected: all tests PASS
 
 Run:
 ```bash
-pls cross-validate \
+plsdo cross-validate \
   --y tests/data/y.csv \
   --demographics tests/data/demographics.csv \
   --group-col group \
@@ -3614,7 +3614,7 @@ Expected: completes without error, outputs in `/tmp/pls_test_cv/`
 - [ ] **Step 6: Commit**
 
 ```
-feat: add pls cross-validate CLI command
+feat: add plsdo cross-validate CLI command
 ```
 
 ---
@@ -3638,7 +3638,7 @@ feat: add pls cross-validate CLI command
 ```bash
 uv venv .venv
 source .venv/bin/activate
-uv pip install pls
+uv pip install plsdo
 ```
 
 For development:
@@ -3653,7 +3653,7 @@ uv pip install -e ".[dev]"
 Finds covariance patterns between two continuous data matrices:
 
 ```bash
-pls run --method c \
+plsdo run --method c \
   --x brain_measures.csv \
   --y behaviour_scores.csv \
   --demographics participants.csv \
@@ -3667,7 +3667,7 @@ pls run --method c \
 Finds patterns that discriminate between groups:
 
 ```bash
-pls run --method d \
+plsdo run --method d \
   --y mri_features.csv \
   --demographics participants.csv \
   --group-col drug_group \
@@ -3680,7 +3680,7 @@ pls run --method d \
 Tests whether the discriminatory model generalises:
 
 ```bash
-pls cross-validate \
+plsdo cross-validate \
   --y mri_features.csv \
   --demographics participants.csv \
   --group-col drug_group \
@@ -3710,7 +3710,7 @@ Then use `--groups groups.yaml` instead of `--group-col`.
 
 ## All Options
 
-Run `pls run --help` or `pls cross-validate --help` for the full list.
+Run `plsdo run --help` or `plsdo cross-validate --help` for the full list.
 ```
 
 - [ ] **Step 2: Write input-format.md**
@@ -3901,7 +3901,7 @@ The permutation test of CV accuracy answers: is the observed accuracy
 significantly better than chance? A p-value below 0.05 indicates that
 the model generalises beyond the training data.
 
-**Important:** do not select the number of components based on `pls run`
+**Important:** do not select the number of components based on `plsdo run`
 results and then feed that into cross-validation. This introduces
 circularity. Use all components (the default) or use nested
 cross-validation.
