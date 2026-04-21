@@ -1,9 +1,14 @@
 """Input loading, validation, and preprocessing."""
 
+import logging
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from pathlib import Path
+from scipy.stats import zscore
+
+logger = logging.getLogger("plsdo")
 
 
 def load_csv(path: Path, require_numeric: bool = False) -> pd.DataFrame:
@@ -90,7 +95,7 @@ def detect_subject_id(
 
     # Pick the first shared column (alphabetically for determinism)
     sid = sorted(shared)[0]
-    print(f"INFO: Auto-detected subject ID column: '{sid}'")
+    logger.info("Auto-detected subject ID column: '%s'", sid)
     return sid
 
 
@@ -129,9 +134,9 @@ def align_subjects(
         all_ids |= s
     dropped = all_ids - shared_ids
     if dropped:
-        print(
-            f"WARNING: {len(dropped)} subject(s) not present in all files "
-            f"and will be excluded: {sorted(dropped)}"
+        logger.warning(
+            "%d subject(s) not present in all files and will be excluded: %s",
+            len(dropped), sorted(dropped),
         )
 
     # Reorder all dataframes to the same sorted subject order
@@ -147,3 +152,81 @@ def align_subjects(
         aligned.append(reordered)
 
     return aligned
+
+
+def check_missing_values(df: pd.DataFrame, name: str) -> None:
+    """Check for NaN values in a dataframe and raise if found.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Data to check (numeric columns only).
+    name : str
+        Name for error messages (e.g. "X", "Y").
+    """
+    numeric = df.select_dtypes(include="number")
+    mask = numeric.isna()
+    if mask.any().any():
+        problem_features = mask.columns[mask.any()].tolist()
+        problem_rows = mask.index[mask.any(axis=1)].tolist()
+        raise ValueError(
+            f"{name} has missing values. "
+            f"Features with NaNs: {problem_features}. "
+            f"Row indices with NaNs: {problem_rows}. "
+            f"The module does not impute or drop data — fix the input files."
+        )
+
+
+def check_variance(
+    arr: np.ndarray,
+    feature_names: list[str],
+    near_zero_threshold: float = 0.95,
+) -> None:
+    """Check for zero and near-zero variance features.
+
+    Parameters
+    ----------
+    arr : ndarray, shape (n_subjects, n_features)
+        Numeric data matrix.
+    feature_names : list of str
+        Feature names for error/warning messages.
+    near_zero_threshold : float
+        If this fraction of values in a column are identical, warn.
+    """
+    variances = np.var(arr, axis=0)
+
+    # Zero variance is a hard error
+    zero_var = np.where(variances == 0.0)[0]
+    if len(zero_var) > 0:
+        names = [feature_names[i] for i in zero_var]
+        raise ValueError(
+            f"Features with zero variance (cannot z-score): {names}. "
+            f"Remove these features from the input file."
+        )
+
+    # Near-zero variance is a warning
+    n_rows = arr.shape[0]
+    for col_idx in range(arr.shape[1]):
+        vals, counts = np.unique(arr[:, col_idx], return_counts=True)
+        max_frac = counts.max() / n_rows
+        if max_frac >= near_zero_threshold:
+            logger.warning(
+                "Feature '%s' has near-zero variance "
+                "(%d%% of values identical). This may distort PLS results.",
+                feature_names[col_idx], int(max_frac * 100),
+            )
+
+
+def zscore_columns(arr: np.ndarray) -> np.ndarray:
+    """Z-score each column (feature) of a matrix.
+
+    Parameters
+    ----------
+    arr : ndarray, shape (n_subjects, n_features)
+
+    Returns
+    -------
+    ndarray
+        Z-scored array, same shape.
+    """
+    return zscore(arr, axis=0, ddof=0)

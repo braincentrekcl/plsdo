@@ -1,7 +1,13 @@
+import numpy as np
 import pandas as pd
 import pytest
 from pathlib import Path
-from plsdo.io import load_csv, detect_subject_id, align_subjects
+import yaml
+from plsdo.io import (
+    load_csv, detect_subject_id, align_subjects,
+    check_missing_values, check_variance, zscore_columns,
+    parse_groups_config, GroupConfig,
+)
 
 
 class TestLoadCsv:
@@ -73,16 +79,69 @@ class TestAlignSubjects:
         aligned = align_subjects([df1, df2], subject_id="id")
         assert list(aligned[0]["id"]) == list(aligned[1]["id"])
 
-    def test_drops_non_shared_with_warning(self, capfd):
+    def test_drops_non_shared_with_warning(self, caplog):
         df1 = pd.DataFrame({"id": ["a", "b", "c"], "v1": [1, 2, 3]})
         df2 = pd.DataFrame({"id": ["b", "c", "d"], "v2": [20, 30, 40]})
-        aligned = align_subjects([df1, df2], subject_id="id")
+        with caplog.at_level("WARNING", logger="plsdo"):
+            aligned = align_subjects([df1, df2], subject_id="id")
         assert len(aligned[0]) == 2  # only b, c
-        captured = capfd.readouterr()
-        assert "not present in all files" in captured.out
+        assert "not present in all files" in caplog.text
 
     def test_empty_intersection_raises(self):
         df1 = pd.DataFrame({"id": ["a", "b"], "v1": [1, 2]})
         df2 = pd.DataFrame({"id": ["c", "d"], "v2": [3, 4]})
         with pytest.raises(ValueError, match="No subjects shared"):
             align_subjects([df1, df2], subject_id="id")
+
+
+class TestCheckMissingValues:
+    def test_no_missing_passes(self):
+        df = pd.DataFrame({"id": ["a", "b"], "v1": [1.0, 2.0], "v2": [3.0, 4.0]})
+        check_missing_values(df, name="test")  # should not raise
+
+    def test_missing_values_raises(self):
+        df = pd.DataFrame({"id": ["a", "b"], "v1": [1.0, float("nan")], "v2": [3.0, 4.0]})
+        with pytest.raises(ValueError, match="missing values"):
+            check_missing_values(df, name="test")
+
+    def test_reports_which_subjects_and_features(self):
+        df = pd.DataFrame({
+            "id": ["a", "b", "c"],
+            "v1": [1.0, float("nan"), 3.0],
+            "v2": [float("nan"), 2.0, 4.0],
+        })
+        with pytest.raises(ValueError, match="v1.*v2"):
+            check_missing_values(df, name="test")
+
+
+class TestCheckVariance:
+    def test_normal_variance_passes(self):
+        arr = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        check_variance(arr, feature_names=["a", "b"])  # should not raise
+
+    def test_zero_variance_raises(self):
+        arr = np.array([[1.0, 5.0], [1.0, 6.0], [1.0, 7.0]])
+        with pytest.raises(ValueError, match="zero variance"):
+            check_variance(arr, feature_names=["const", "varying"])
+
+    def test_near_zero_variance_warns(self, caplog):
+        # 9 out of 10 values are identical
+        arr = np.array([[1.0, 5.0]] * 9 + [[2.0, 6.0]])
+        with caplog.at_level("WARNING", logger="plsdo"):
+            check_variance(arr, feature_names=["nearly_const", "varying"],
+                            near_zero_threshold=0.85)
+        assert "nearly_const" in caplog.text
+        assert "near-zero variance" in caplog.text.lower()
+
+
+class TestZscoreColumns:
+    def test_zero_mean_unit_variance(self):
+        arr = np.array([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0], [4.0, 40.0]])
+        z = zscore_columns(arr)
+        np.testing.assert_allclose(z.mean(axis=0), 0.0, atol=1e-10)
+        np.testing.assert_allclose(z.std(axis=0, ddof=0), 1.0, atol=1e-10)
+
+    def test_shape_preserved(self):
+        arr = np.random.default_rng(0).standard_normal((10, 5))
+        z = zscore_columns(arr)
+        assert z.shape == arr.shape
