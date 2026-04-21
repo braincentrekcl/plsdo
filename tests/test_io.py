@@ -145,3 +145,52 @@ class TestZscoreColumns:
         arr = np.random.default_rng(0).standard_normal((10, 5))
         z = zscore_columns(arr)
         assert z.shape == arr.shape
+
+
+class TestParseGroupsConfig:
+    def test_loads_yaml(self, groups_yaml_path):
+        config = parse_groups_config(groups_yaml_path)
+        assert config.subject_id == "subject_id"
+        assert len(config.groups) == 2
+        assert config.groups[0].column == "group"
+        assert config.groups[0].role == "x_axis"
+        assert config.groups[0].reference == "A"
+        assert config.groups[0].order == ["A", "B", "C"]
+
+    def test_column_not_in_demographics_raises(self, tmp_path):
+        cfg = tmp_path / "bad.yaml"
+        cfg.write_text(yaml.dump({
+            "subject_id": "subject_id",
+            "groups": [{"column": "nonexistent", "role": "x_axis"}],
+        }))
+        demo = pd.DataFrame({"subject_id": ["a"], "group": ["A"]})
+        with pytest.raises(ValueError, match="not found in demographics"):
+            parse_groups_config(cfg, demographics_df=demo)
+
+    def test_warns_about_unlisted_demographics_columns(self, tmp_path, caplog):
+        cfg = tmp_path / "partial.yaml"
+        cfg.write_text(yaml.dump({
+            "subject_id": "subject_id",
+            "groups": [{"column": "group", "role": "x_axis"}],
+        }))
+        demo = pd.DataFrame({
+            "subject_id": ["a"], "group": ["A"], "extra_col": [1]
+        })
+        with caplog.at_level("WARNING", logger="plsdo"):
+            parse_groups_config(cfg, demographics_df=demo)
+        assert "extra_col" in caplog.text
+
+    def test_from_group_col_string(self):
+        config = GroupConfig.from_group_col("Drug")
+        assert len(config.groups) == 1
+        assert config.groups[0].column == "Drug"
+        assert config.groups[0].role == "x_axis"
+
+    def test_invalid_role_raises(self, tmp_path):
+        cfg = tmp_path / "bad_role.yaml"
+        cfg.write_text(yaml.dump({
+            "subject_id": "id",
+            "groups": [{"column": "g", "role": "invalid_role"}],
+        }))
+        with pytest.raises(ValueError, match="Invalid role"):
+            parse_groups_config(cfg)
