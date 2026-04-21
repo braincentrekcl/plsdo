@@ -219,7 +219,32 @@ Run: `pytest --co -q`
 
 Expected: `no tests ran` (no error)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Add `.gitignore`**
+
+```
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# uv
+uv.lock
+
+```
+
+- [ ] **Step 8: Commit**
 
 ```
 chore: scaffold plsdo package with pyproject.toml, LICENSE, and module stubs
@@ -3976,7 +4001,12 @@ docs: add usage, input format, missing data, and output interpretation guides
 - Discriminatory dummy coding: Task 7
 - Verbose plots: not fully implemented — see note below
 
-**Gap found:** Verbose plots (LV heatmaps, bootstrap ratio heatmaps, raw data distributions, scree plot, CV convergence) are specified in the design but not explicitly tasked. These are lower priority and can be added as a follow-up task after the core pipeline is working. The `--verbose` flag is already accepted by the CLI; it just doesn't produce extra plots yet.
+**Gap found:** Verbose plots (LV heatmaps, bootstrap ratio heatmaps, raw data distributions, scree plot, CV convergence) are specified in the design but not explicitly tasked. These are lower priority and can be added as a follow-up task after the core pipeline is working. The `--all-plots` flag is already accepted by the CLI; it just doesn't produce extra plots yet.
+
+**Follow-up tasks (post-core implementation):**
+- Verbose/`--all-plots` plot generation
+- Release script that excludes `docs/superpowers/` from distribution (development docs should not ship in the package)
+- Sparse PLS subclass via `_decompose()` inheritance hook
 
 **Placeholder scan:** No TBDs, TODOs, or "implement later" found.
 
