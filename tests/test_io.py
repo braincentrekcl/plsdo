@@ -57,6 +57,13 @@ class TestDetectSubjectId:
         sid = detect_subject_id([x_df, y_df, demographics_df])
         assert sid == "subject_id"
 
+    def test_auto_detect_uses_positional_order_not_alphabetical(self):
+        # "b" comes before "a" alphabetically but "a" is first in df1
+        df1 = pd.DataFrame({"a": [1, 2], "b": [3, 4], "val": [5, 6]})
+        df2 = pd.DataFrame({"b": [3, 4], "a": [1, 2], "val2": [7, 8]})
+        sid = detect_subject_id([df1, df2])
+        assert sid == "a"
+
     def test_auto_detect_no_shared_column(self):
         df1 = pd.DataFrame({"a": [1], "val": [2]})
         df2 = pd.DataFrame({"b": [1], "val2": [3]})

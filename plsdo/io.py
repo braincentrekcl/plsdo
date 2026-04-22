@@ -84,7 +84,7 @@ def detect_subject_id(
                 )
         return subject_id
 
-    # Auto-detect: first column name shared across all dataframes
+    # Auto-detect: first column in dfs[0] that appears in all other dataframes
     shared = set(dfs[0].columns)
     for df in dfs[1:]:
         shared &= set(df.columns)
@@ -95,8 +95,8 @@ def detect_subject_id(
             "Specify --subject-id explicitly."
         )
 
-    # Pick the first shared column (alphabetically for determinism)
-    sid = sorted(shared)[0]
+    # Preserve positional order from the first dataframe
+    sid = next(col for col in dfs[0].columns if col in shared)
     logger.info("Auto-detected subject ID column: '%s'", sid)
     return sid
 
