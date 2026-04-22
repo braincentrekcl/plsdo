@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-from pathlib import Path
 import yaml
 from plsdo.io import (
     load_csv, detect_subject_id, align_subjects,

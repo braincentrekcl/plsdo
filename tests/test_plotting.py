@@ -3,8 +3,6 @@ matplotlib.use("Agg")  # non-interactive backend for tests
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
-from pathlib import Path
 from plsdo.plotting import (
     figure_size, plot_heatmap, plot_permutation,
     plot_loadings, plot_scores_boxstrip, plot_scores_scatter,

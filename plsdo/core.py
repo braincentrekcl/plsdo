@@ -85,8 +85,6 @@ class PLS:
         self._check_fitted()
 
         perm_rng = np.random.default_rng(self._rng.integers(2**31))
-        n_components = len(self.s)
-
         perm_s_list = []
         for _ in range(n_perms):
             perm_order = perm_rng.permutation(self.n_subjects)

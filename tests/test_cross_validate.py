@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from plsdo.cross_validate import run_cv, permutation_test_cv
 
 
