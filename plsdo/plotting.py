@@ -366,6 +366,36 @@ def plot_cv_permutation(
     plt.close(fig)
 
 
+def meta_colours(
+    meta_df,
+    feature_names: list[str],
+) -> Optional[list]:
+    """Build a per-feature colour list from a metadata DataFrame.
+
+    Parameters
+    ----------
+    meta_df : DataFrame or None
+        Metadata with 'feature' and 'category' columns.
+    feature_names : list of str
+        Ordered feature names from the data matrix.
+
+    Returns
+    -------
+    list of colours, or None if meta_df is None or has no 'category' column.
+    """
+    if meta_df is None or "category" not in meta_df.columns:
+        return None
+    colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
+    palette = dict(zip(
+        meta_df["category"].unique(),
+        sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
+    ))
+    return [
+        palette.get(colour_map.get(f), "steelblue")
+        for f in feature_names
+    ]
+
+
 def plot_confusion_matrix(
     cm: np.ndarray,
     label_names: list[str],

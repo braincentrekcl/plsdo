@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import seaborn as sns
 
 from plsdo import __version__
 from plsdo.core import PLS
@@ -23,6 +22,7 @@ from plsdo.io import (
     zscore_columns,
 )
 from plsdo.plotting import (
+    meta_colours,
     plot_heatmap,
     plot_loadings,
     plot_permutation,
@@ -223,10 +223,12 @@ def run_pipeline(
     )
 
     # 3. Loading bar plots for final LVs
+    final_lv_indices = np.where(model.final_lvs)[0]
+    x_colours = meta_colours(x_meta_df, x_feature_names)
+    y_colours = meta_colours(y_meta_df, y_feature_names)
     for i, lv_name in enumerate(final_lv_names):
-        lv_idx = [j for j, v in enumerate(model.final_lvs) if v][i]
+        lv_idx = final_lv_indices[i]
 
-        x_colours = _meta_colours(x_meta_df, x_feature_names)
         plot_loadings(
             loadings=model.u_loadings[:, lv_idx],
             se=model.u_se[:, lv_idx],
@@ -237,7 +239,6 @@ def run_pipeline(
             dpi=dpi,
         )
 
-        y_colours = _meta_colours(y_meta_df, y_feature_names)
         plot_loadings(
             loadings=model.vt_loadings[lv_idx, :],
             se=model.vt_se[lv_idx, :],
@@ -448,21 +449,6 @@ def cross_validate_pipeline(
 # --- Private helpers ---
 
 
-def _meta_colours(meta_df, feature_names):
-    """Build per-feature colour list from metadata, or None."""
-    if meta_df is None or "category" not in meta_df.columns:
-        return None
-    colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
-    palette = dict(zip(
-        meta_df["category"].unique(),
-        sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
-    ))
-    return [
-        palette.get(colour_map.get(f), "steelblue")
-        for f in feature_names
-    ]
-
-
 def _plot_score_boxstrips(
     model, config, demo_aligned, subject_ids, sid,
     final_lv_names, figures_dir, ext, dpi,
@@ -481,10 +467,11 @@ def _plot_score_boxstrips(
         None,
     )
 
+    final_lv_indices = np.where(model.final_lvs)[0]
     for score_side, score_matrix in [("X", model.x_scores), ("Y", model.y_scores)]:
         score_long = []
         for i, lv_name in enumerate(final_lv_names):
-            lv_idx = [j for j, v in enumerate(model.final_lvs) if v][i]
+            lv_idx = final_lv_indices[i]
             for subj_i, subj_id in enumerate(subject_ids):
                 row = {
                     sid: subj_id,
@@ -524,8 +511,9 @@ def _plot_score_scatters(
         (g.column for g in group_cols_to_use if g.role in ("x_axis", "hue")),
         None,
     )
+    final_lv_indices = np.where(model.final_lvs)[0]
     for i, lv_name in enumerate(final_lv_names):
-        lv_idx = [j for j, v in enumerate(model.final_lvs) if v][i]
+        lv_idx = final_lv_indices[i]
         scatter_data = {
             "x_score": model.x_scores[:, lv_idx],
             "y_score": model.y_scores[:, lv_idx],
