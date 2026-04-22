@@ -2,6 +2,7 @@
 name = "plsdo"
 version = "0.1.0"
 description = "PLS covariance analysis with statistical testing and visualisation"
+readme = "README.md"
 keywords = ["PLS", "multivariate", "statistics", "analysis"]
 classifiers = [
     "Development Status :: 3 - Alpha",
