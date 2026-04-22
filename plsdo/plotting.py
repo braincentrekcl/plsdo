@@ -253,9 +253,14 @@ def plot_scores_boxstrip(
         legend_out=True,
         **kwargs,
     )
+    hue_order = (
+        scores_df[hue].cat.categories.tolist()
+        if hasattr(scores_df[hue], "cat")
+        else sorted(scores_df[hue].unique())
+    )
     g.map(
         sns.stripplot, x_col, y_col, hue,
-        order=order,
+        order=order, hue_order=hue_order,
         size=5, dodge=True, palette="Set2",
         jitter=True, linewidth=1, edgecolor=".5",
     )
@@ -537,7 +542,7 @@ def plot_raw_distributions(
     )
     g.map(
         sns.stripplot, group_col, "z-score", group_col,
-        order=order,
+        order=order, hue_order=order,
         size=5, dodge=True, palette="Set2",
         jitter=True, linewidth=1, edgecolor=".5",
     )
