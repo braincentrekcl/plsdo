@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a new capability or enhancement
+labels: ["type: feature"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Use case and motivation
+      description: What problem does this solve, and for whom?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: How should the feature work? Include proposed CLI flags, output changes, or API behaviour as applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Literature reference
+      description: >
+        Optional. If the request relates to a specific PLS variant, statistical method, or published analysis,
+        cite the paper here (author, year, DOI or URL if available).
+    validations:
+      required: false

@@ -1,0 +1,48 @@
+name: Bug report
+description: Report something that is not working correctly
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: command
+    attributes:
+      label: Command run
+      description: The exact `plsdo` invocation, including all flags
+      placeholder: "plsdo run --method c --x X.csv --y Y.csv --demographics demo.csv --output results/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should have happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead — include the full error message and traceback if applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input description
+      description: >
+        Describe the shape and content of your input files (number of subjects, features, groups).
+        Do not attach real data — synthetic or anonymised descriptions are fine.
+      placeholder: "X: 42 subjects × 120 features, Y: 42 subjects × 8 scores, 3 groups"
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, operating system, and plsdo version (found in `log.txt` under `version:`)
+      placeholder: "Python 3.11, macOS 14.4, plsdo 0.1.0"
+    validations:
+      required: true

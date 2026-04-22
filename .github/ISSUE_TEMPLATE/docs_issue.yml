@@ -1,0 +1,30 @@
+name: Documentation issue
+description: Report missing, incorrect, or unclear documentation — including missing references
+labels: ["type: docs"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What is missing or incorrect
+      description: Describe the gap or error
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Which doc page, CLI help text, log output, or plot label is affected?
+      placeholder: "docs/interpreting-output.md, section on bootstrap ratios"
+    validations:
+      required: false
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference or source
+      description: >
+        Optional. Cite the paper, source, or example that should be referenced or used to correct the docs.
+      placeholder: "McIntosh & Lobaugh (2004), Partial least squares analysis of neuroimaging data, doi:10.1016/j.neuroimage.2004.07.020"
+    validations:
+      required: false
