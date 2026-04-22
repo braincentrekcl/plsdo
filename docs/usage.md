@@ -8,6 +8,11 @@ source .venv/bin/activate
 uv pip install plsdo
 ```
 
+For discriminatory PLS with cross-validation (requires scikit-learn):
+```bash
+uv pip install "plsdo[cv]"
+```
+
 For development:
 ```bash
 uv pip install -e ".[dev]"
@@ -43,6 +48,8 @@ plsdo run --method d \
 ```
 
 ### Cross-Validation
+
+> **Requires the `[cv]` extra.** Install with `uv pip install "plsdo[cv]"` before using this subcommand. Without it you will get `ModuleNotFoundError: No module named 'sklearn'`.
 
 Tests whether the discriminatory model generalises:
 
