@@ -101,6 +101,15 @@ class TestRunValidation:
         assert (figs / "Y_raw_distributions.svg").exists()
 
 
+def test_version_flag(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        pls_main(["--version"])
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "plsdo" in captured.out
+    assert "0.1.0" in captured.out
+
+
 class TestCrossValidate:
     def test_requires_group_col(self, data_dir, tmp_path):
         with pytest.raises(SystemExit) as exc_info:

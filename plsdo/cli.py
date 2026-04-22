@@ -36,6 +36,10 @@ def pls_main(argv=None):
         prog="plsdo",
         description="PLS covariance analysis with statistical testing and visualisation.",
     )
+    from plsdo import __version__
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     # --- plsdo run ---
