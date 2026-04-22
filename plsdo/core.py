@@ -59,16 +59,12 @@ class PLS:
         Separated into its own method so that SparsePLS can override
         just this step.
         """
-        self.u, self.s, self.vt = np.linalg.svd(
-            self.xcorr, full_matrices=False
-        )
+        self.u, self.s, self.vt = np.linalg.svd(self.xcorr, full_matrices=False)
 
     def _check_fitted(self):
         """Raise if fit() has not been called."""
         if not self._fitted:
-            raise RuntimeError(
-                "Call .fit() before running permutation or bootstrap."
-            )
+            raise RuntimeError("Call .fit() before running permutation or bootstrap.")
 
     def permutation_test(self, n_perms: int = 10000) -> None:
         """Test significance of singular values by permutation.
@@ -121,13 +117,13 @@ class PLS:
 
         for _ in range(n_bootstraps):
             idx = boot_rng.choice(row_idx, size=self.n_subjects, replace=True)
-            x_boot = zscore_columns(self.X[idx, :]) if self._zscore_x else self.X[idx, :]
+            x_boot = (
+                zscore_columns(self.X[idx, :]) if self._zscore_x else self.X[idx, :]
+            )
             y_boot = zscore_columns(self.Y[idx, :])
 
             boot_xcorr = x_boot.T @ y_boot / (self.n_subjects - 1)
-            boot_u, boot_s, boot_vt = np.linalg.svd(
-                boot_xcorr, full_matrices=False
-            )
+            boot_u, boot_s, boot_vt = np.linalg.svd(boot_xcorr, full_matrices=False)
 
             # Procrustes: rotate bootstrap Vt to align with reference
             Q, _ = orthogonal_procrustes(boot_vt.T, self.vt.T)
@@ -152,9 +148,7 @@ class PLS:
 
         eps = 1e-12
         self.u_bootstrap_ratios = self.u_loadings / np.maximum(self.u_se, eps)
-        self.vt_bootstrap_ratios = self.vt_loadings / np.maximum(
-            self.vt_se, eps
-        )
+        self.vt_bootstrap_ratios = self.vt_loadings / np.maximum(self.vt_se, eps)
 
     def filter_lvs(self, bsr_threshold: float = 1.96) -> None:
         """Filter latent variables by significance and reliability.
@@ -170,24 +164,16 @@ class PLS:
             Bootstrap ratio threshold (default 1.96 for 95% CI).
         """
         if not hasattr(self, "p_values"):
-            raise RuntimeError(
-                "Call .permutation_test() before .filter_lvs()."
-            )
+            raise RuntimeError("Call .permutation_test() before .filter_lvs().")
         if not hasattr(self, "u_bootstrap_ratios"):
-            raise RuntimeError(
-                "Call .bootstrap() before .filter_lvs()."
-            )
+            raise RuntimeError("Call .bootstrap() before .filter_lvs().")
 
         significant = self.p_values < 0.05
 
         # Check if any feature exceeds threshold on X side
-        x_reliable = np.any(
-            np.abs(self.u_bootstrap_ratios) > bsr_threshold, axis=0
-        )
+        x_reliable = np.any(np.abs(self.u_bootstrap_ratios) > bsr_threshold, axis=0)
 
         # Check if any feature exceeds threshold on Y side
-        y_reliable = np.any(
-            np.abs(self.vt_bootstrap_ratios) > bsr_threshold, axis=1
-        )
+        y_reliable = np.any(np.abs(self.vt_bootstrap_ratios) > bsr_threshold, axis=1)
 
         self.final_lvs = significant & x_reliable & y_reliable

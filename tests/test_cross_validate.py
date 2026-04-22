@@ -8,15 +8,15 @@ class TestRunCV:
         rng = np.random.default_rng(42)
         n_per_group = 20
         # Group 0: features centred at 0, Group 1: at 10
-        X = np.vstack([
-            rng.standard_normal((n_per_group, 5)),
-            rng.standard_normal((n_per_group, 5)) + 10,
-        ])
+        X = np.vstack(
+            [
+                rng.standard_normal((n_per_group, 5)),
+                rng.standard_normal((n_per_group, 5)) + 10,
+            ]
+        )
         labels = np.array([0] * n_per_group + [1] * n_per_group)
 
-        results = run_cv(
-            X, labels, n_splits=5, n_repeats=10, n_components=1, seed=42
-        )
+        results = run_cv(X, labels, n_splits=5, n_repeats=10, n_components=1, seed=42)
         assert results["mean_accuracy"] > 0.90
 
     def test_random_data_near_chance(self):
@@ -26,9 +26,7 @@ class TestRunCV:
         labels = np.array([0] * 20 + [1] * 20)
         rng.shuffle(labels)
 
-        results = run_cv(
-            X, labels, n_splits=5, n_repeats=10, n_components=1, seed=42
-        )
+        results = run_cv(X, labels, n_splits=5, n_repeats=10, n_components=1, seed=42)
         assert results["mean_accuracy"] < 0.70  # generous margin
 
     def test_seed_reproducibility(self):
@@ -45,9 +43,7 @@ class TestRunCV:
         X = rng.standard_normal((40, 5))
         labels = np.array([0] * 20 + [1] * 20)
 
-        results = run_cv(
-            X, labels, n_splits=5, n_repeats=2, n_components=1, seed=42
-        )
+        results = run_cv(X, labels, n_splits=5, n_repeats=2, n_components=1, seed=42)
         assert "mean_accuracy" in results
         assert "mean_balanced_accuracy" in results
         assert "fold_results" in results
@@ -63,9 +59,14 @@ class TestPermutationTestCV:
         labels = np.array([0] * 20 + [1] * 20)
 
         result = permutation_test_cv(
-            X, labels, observed_accuracy=0.5,
-            n_splits=5, n_repeats=2, n_components=1,
-            n_permutations=50, seed=42,
+            X,
+            labels,
+            observed_accuracy=0.5,
+            n_splits=5,
+            n_repeats=2,
+            n_components=1,
+            n_permutations=50,
+            seed=42,
         )
         assert 0.0 <= result["p_value"] <= 1.0
         assert "null_accuracies" in result

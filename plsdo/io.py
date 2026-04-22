@@ -58,9 +58,7 @@ def load_csv(path: Path, require_numeric: bool = False) -> pd.DataFrame:
     return df
 
 
-def detect_subject_id(
-    dfs: list[pd.DataFrame], subject_id: Optional[str] = None
-) -> str:
+def detect_subject_id(dfs: list[pd.DataFrame], subject_id: Optional[str] = None) -> str:
     """Identify the subject ID column across dataframes.
 
     Parameters
@@ -101,9 +99,7 @@ def detect_subject_id(
     return sid
 
 
-def align_subjects(
-    dfs: list[pd.DataFrame], subject_id: str
-) -> list[pd.DataFrame]:
+def align_subjects(dfs: list[pd.DataFrame], subject_id: str) -> list[pd.DataFrame]:
     """Align dataframes to shared subjects in consistent order.
 
     Parameters
@@ -138,7 +134,8 @@ def align_subjects(
     if dropped:
         logger.warning(
             "%d subject(s) not present in all files and will be excluded: %s",
-            len(dropped), sorted(dropped),
+            len(dropped),
+            sorted(dropped),
         )
 
     # Reorder all dataframes to the same sorted subject order
@@ -215,7 +212,8 @@ def check_variance(
             logger.warning(
                 "Feature '%s' has near-zero variance "
                 "(%d%% of values identical). This may distort PLS results.",
-                feature_names[col_idx], int(max_frac * 100),
+                feature_names[col_idx],
+                int(max_frac * 100),
             )
 
 
@@ -240,6 +238,7 @@ VALID_ROLES = {"x_axis", "hue", "facet_rows", "facet_cols", "ignore"}
 @dataclass
 class GroupSpec:
     """Specification for a single grouping column."""
+
     column: str
     role: str
     reference: Optional[str] = None
@@ -251,6 +250,7 @@ class GroupSpec:
 @dataclass
 class GroupConfig:
     """Parsed groups configuration."""
+
     subject_id: Optional[str] = None
     groups: list[GroupSpec] = field(default_factory=list)
 
@@ -295,14 +295,16 @@ def parse_groups_config(
                 f"Invalid role '{role}' for column '{entry.get('column')}'. "
                 f"Valid roles: {sorted(VALID_ROLES)}"
             )
-        groups.append(GroupSpec(
-            column=entry["column"],
-            role=role,
-            reference=entry.get("reference"),
-            order=entry.get("order"),
-            order_by=entry.get("order_by"),
-            facet_col_wrap=entry.get("facet_col_wrap"),
-        ))
+        groups.append(
+            GroupSpec(
+                column=entry["column"],
+                role=role,
+                reference=entry.get("reference"),
+                order=entry.get("order"),
+                order_by=entry.get("order_by"),
+                facet_col_wrap=entry.get("facet_col_wrap"),
+            )
+        )
 
     config = GroupConfig(subject_id=subject_id, groups=groups)
 
@@ -330,9 +332,7 @@ def parse_groups_config(
     return config
 
 
-def load_metadata(
-    path: Path, data_feature_names: list[str]
-) -> pd.DataFrame:
+def load_metadata(path: Path, data_feature_names: list[str]) -> pd.DataFrame:
     """Load a feature metadata CSV and validate against data features.
 
     Parameters

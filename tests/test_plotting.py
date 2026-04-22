@@ -1,14 +1,24 @@
 import matplotlib
+
 matplotlib.use("Agg")  # non-interactive backend for tests
 
 import matplotlib.pyplot as plt
 import numpy as np
 from plsdo.plotting import (
-    figure_size, plot_heatmap, plot_permutation,
-    plot_loadings, plot_scores_boxstrip, plot_scores_scatter,
-    plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix,
-    plot_lv_heatmap, plot_bootstrap_heatmap, plot_raw_distributions,
-    plot_scree, plot_cv_convergence,
+    figure_size,
+    plot_heatmap,
+    plot_permutation,
+    plot_loadings,
+    plot_scores_boxstrip,
+    plot_scores_scatter,
+    plot_cv_accuracy,
+    plot_cv_permutation,
+    plot_confusion_matrix,
+    plot_lv_heatmap,
+    plot_bootstrap_heatmap,
+    plot_raw_distributions,
+    plot_scree,
+    plot_cv_convergence,
 )
 
 
@@ -34,7 +44,8 @@ class TestPlotHeatmap:
         data = np.random.default_rng(0).standard_normal((5, 4))
         out = tmp_output / "heatmap.svg"
         plot_heatmap(
-            data, v=1.0,
+            data,
+            v=1.0,
             xticklabels=["a", "b", "c", "d"],
             yticklabels=["r1", "r2", "r3", "r4", "r5"],
             out_path=out,
@@ -46,20 +57,25 @@ class TestPlotHeatmap:
         data = np.random.default_rng(0).standard_normal((35, 35))
         out = tmp_output / "big_heatmap.svg"
         fig, ax = plot_heatmap(
-            data, v=1.0,
+            data,
+            v=1.0,
             xticklabels=[f"x{i}" for i in range(35)],
             yticklabels=[f"y{i}" for i in range(35)],
             out_path=out,
             return_fig=True,
         )
         # Check no annotation text objects
-        texts = [c for c in ax.get_children()
-                 if isinstance(c, matplotlib.text.Text)
-                 and c.get_text() not in ("", " ")]
+        texts = [
+            c
+            for c in ax.get_children()
+            if isinstance(c, matplotlib.text.Text) and c.get_text() not in ("", " ")
+        ]
         # Only tick labels and title, no cell annotations
         annotation_count = sum(
-            1 for t in texts
-            if t.get_position()[0] > 0 and t.get_position()[1] > 0
+            1
+            for t in texts
+            if t.get_position()[0] > 0
+            and t.get_position()[1] > 0
             and t.get_text().replace("-", "").replace(".", "").isdigit()
         )
         assert annotation_count == 0
@@ -110,11 +126,13 @@ class TestPlotScoresBoxstrip:
     def test_saves_file(self, tmp_output):
         import pandas as pd
 
-        scores_df = pd.DataFrame({
-            "score": np.random.default_rng(0).standard_normal(12),
-            "LV": ["LV1"] * 6 + ["LV2"] * 6,
-            "group": ["A", "A", "B", "B", "C", "C"] * 2,
-        })
+        scores_df = pd.DataFrame(
+            {
+                "score": np.random.default_rng(0).standard_normal(12),
+                "LV": ["LV1"] * 6 + ["LV2"] * 6,
+                "group": ["A", "A", "B", "B", "C", "C"] * 2,
+            }
+        )
         scores_df["group"] = pd.Categorical(
             scores_df["group"], categories=["A", "B", "C"], ordered=True
         )
@@ -133,11 +151,13 @@ class TestPlotScoresScatter:
     def test_saves_file(self, tmp_output):
         import pandas as pd
 
-        scatter_df = pd.DataFrame({
-            "x_score": np.random.default_rng(0).standard_normal(12),
-            "y_score": np.random.default_rng(1).standard_normal(12),
-            "group": ["A"] * 4 + ["B"] * 4 + ["C"] * 4,
-        })
+        scatter_df = pd.DataFrame(
+            {
+                "x_score": np.random.default_rng(0).standard_normal(12),
+                "y_score": np.random.default_rng(1).standard_normal(12),
+                "group": ["A"] * 4 + ["B"] * 4 + ["C"] * 4,
+            }
+        )
         out = tmp_output / "scatter.svg"
         plot_scores_scatter(
             scatter_df=scatter_df,
@@ -155,8 +175,10 @@ class TestCVPlots:
         accs = np.random.default_rng(0).uniform(0.2, 0.8, size=50)
         out = tmp_output / "cv_acc.svg"
         plot_cv_accuracy(
-            fold_accuracies=accs, mean_accuracy=0.5,
-            chance_level=0.25, out_path=out,
+            fold_accuracies=accs,
+            mean_accuracy=0.5,
+            chance_level=0.25,
+            out_path=out,
         )
         assert out.exists()
 
@@ -164,8 +186,10 @@ class TestCVPlots:
         null_accs = np.random.default_rng(0).uniform(0.2, 0.4, size=100)
         out = tmp_output / "cv_perm.svg"
         plot_cv_permutation(
-            null_accuracies=null_accs, observed_accuracy=0.6,
-            p_value=0.01, out_path=out,
+            null_accuracies=null_accs,
+            observed_accuracy=0.6,
+            p_value=0.01,
+            out_path=out,
         )
         assert out.exists()
 
@@ -173,8 +197,10 @@ class TestCVPlots:
         cm = np.array([[0.8, 0.1, 0.1], [0.2, 0.7, 0.1], [0.1, 0.2, 0.7]])
         out = tmp_output / "cm.svg"
         plot_confusion_matrix(
-            cm=cm, label_names=["A", "B", "C"],
-            mean_accuracy=0.73, out_path=out,
+            cm=cm,
+            label_names=["A", "B", "C"],
+            mean_accuracy=0.73,
+            out_path=out,
         )
         assert out.exists()
 
@@ -187,7 +213,10 @@ class TestPlotLvHeatmap:
         vt = rng.standard_normal((3, 4))
         out = tmp_output / "lv_heatmap.svg"
         plot_lv_heatmap(
-            lv_idx=0, u=u, s=s, vt=vt,
+            lv_idx=0,
+            u=u,
+            s=s,
+            vt=vt,
             x_feature_names=["x1", "x2", "x3", "x4", "x5"],
             y_feature_names=["y1", "y2", "y3", "y4"],
             out_path=out,
@@ -204,9 +233,15 @@ class TestPlotLvHeatmap:
         y_names = ["y1", "y2", "y3", "y4"]
         for i in range(3):
             out = tmp_output / f"lv{i}_heatmap.svg"
-            plot_lv_heatmap(lv_idx=i, u=u, s=s, vt=vt,
-                            x_feature_names=x_names, y_feature_names=y_names,
-                            out_path=out)
+            plot_lv_heatmap(
+                lv_idx=i,
+                u=u,
+                s=s,
+                vt=vt,
+                x_feature_names=x_names,
+                y_feature_names=y_names,
+                out_path=out,
+            )
             assert out.exists()
 
 

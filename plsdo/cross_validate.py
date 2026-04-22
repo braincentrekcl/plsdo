@@ -73,13 +73,15 @@ def run_cv(
         acc = accuracy_score(labels_test, pred_labels)
         bal_acc = balanced_accuracy_score(labels_test, pred_labels)
 
-        fold_results.append({
-            "fold": fold_idx,
-            "repeat": fold_idx // n_splits,
-            "accuracy": acc,
-            "balanced_accuracy": bal_acc,
-            "n_test": len(test_idx),
-        })
+        fold_results.append(
+            {
+                "fold": fold_idx,
+                "repeat": fold_idx // n_splits,
+                "accuracy": acc,
+                "balanced_accuracy": bal_acc,
+                "n_test": len(test_idx),
+            }
+        )
 
         all_true.extend(labels_test)
         all_pred.extend(pred_labels)
@@ -94,9 +96,7 @@ def run_cv(
         "fold_results": fold_df,
         "true_labels": true_all,
         "pred_labels": pred_all,
-        "confusion_matrix": confusion_matrix(
-            true_all, pred_all, normalize="true"
-        ),
+        "confusion_matrix": confusion_matrix(true_all, pred_all, normalize="true"),
     }
 
 
@@ -139,8 +139,12 @@ def permutation_test_cv(
     for perm_i in range(n_permutations):
         shuffled = rng.permutation(labels)
         result = run_cv(
-            X, shuffled, n_splits=n_splits, n_repeats=n_repeats,
-            n_components=n_components, seed=perm_i,
+            X,
+            shuffled,
+            n_splits=n_splits,
+            n_repeats=n_repeats,
+            n_components=n_components,
+            seed=perm_i,
         )
         null_accs.append(result["mean_accuracy"])
 

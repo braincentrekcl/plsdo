@@ -178,34 +178,57 @@ def run_pipeline(
     model.filter_lvs()
 
     # --- Save data CSVs ---
-    _save_csv(model.s[None, :], data_dir / "singular_values.csv",
-              columns=[f"LV{i+1}" for i in range(len(model.s))])
-    _save_csv(model.p_values[None, :], data_dir / "p_values.csv",
-              columns=[f"LV{i+1}" for i in range(len(model.p_values))])
-    _save_csv(model.u_loadings, data_dir / "x_loadings.csv",
-              columns=[f"LV{i+1}" for i in range(model.u_loadings.shape[1])],
-              index=x_feature_names)
-    _save_csv(model.vt_loadings.T, data_dir / "y_loadings.csv",
-              columns=[f"LV{i+1}" for i in range(model.vt_loadings.shape[0])],
-              index=y_feature_names)
-    _save_csv(model.u_bootstrap_ratios, data_dir / "x_bootstrap_ratios.csv",
-              columns=[f"LV{i+1}" for i in range(model.u_bootstrap_ratios.shape[1])],
-              index=x_feature_names)
-    _save_csv(model.vt_bootstrap_ratios.T, data_dir / "y_bootstrap_ratios.csv",
-              columns=[f"LV{i+1}" for i in range(model.vt_bootstrap_ratios.shape[0])],
-              index=y_feature_names)
+    _save_csv(
+        model.s[None, :],
+        data_dir / "singular_values.csv",
+        columns=[f"LV{i + 1}" for i in range(len(model.s))],
+    )
+    _save_csv(
+        model.p_values[None, :],
+        data_dir / "p_values.csv",
+        columns=[f"LV{i + 1}" for i in range(len(model.p_values))],
+    )
+    _save_csv(
+        model.u_loadings,
+        data_dir / "x_loadings.csv",
+        columns=[f"LV{i + 1}" for i in range(model.u_loadings.shape[1])],
+        index=x_feature_names,
+    )
+    _save_csv(
+        model.vt_loadings.T,
+        data_dir / "y_loadings.csv",
+        columns=[f"LV{i + 1}" for i in range(model.vt_loadings.shape[0])],
+        index=y_feature_names,
+    )
+    _save_csv(
+        model.u_bootstrap_ratios,
+        data_dir / "x_bootstrap_ratios.csv",
+        columns=[f"LV{i + 1}" for i in range(model.u_bootstrap_ratios.shape[1])],
+        index=x_feature_names,
+    )
+    _save_csv(
+        model.vt_bootstrap_ratios.T,
+        data_dir / "y_bootstrap_ratios.csv",
+        columns=[f"LV{i + 1}" for i in range(model.vt_bootstrap_ratios.shape[0])],
+        index=y_feature_names,
+    )
 
     # Subject scores
     subject_ids = y_aligned[sid].tolist()
-    final_lv_names = [f"LV{i+1}" for i, v in enumerate(model.final_lvs) if v]
-    scores_data = np.column_stack([
-        model.x_scores[:, model.final_lvs],
-        model.y_scores[:, model.final_lvs],
-    ]) if any(model.final_lvs) else np.empty((len(subject_ids), 0))
-    scores_cols = (
-        [f"X_{name}" for name in final_lv_names]
-        + [f"Y_{name}" for name in final_lv_names]
+    final_lv_names = [f"LV{i + 1}" for i, v in enumerate(model.final_lvs) if v]
+    scores_data = (
+        np.column_stack(
+            [
+                model.x_scores[:, model.final_lvs],
+                model.y_scores[:, model.final_lvs],
+            ]
+        )
+        if any(model.final_lvs)
+        else np.empty((len(subject_ids), 0))
     )
+    scores_cols = [f"X_{name}" for name in final_lv_names] + [
+        f"Y_{name}" for name in final_lv_names
+    ]
     scores_df = pd.DataFrame(scores_data, columns=scores_cols, index=subject_ids)
     scores_df.index.name = sid
     scores_df.to_csv(data_dir / "subject_scores.csv")
@@ -215,7 +238,8 @@ def run_pipeline(
 
     # 1. Cross-correlation heatmap
     plot_heatmap(
-        model.xcorr, v=1.0,
+        model.xcorr,
+        v=1.0,
         xticklabels=y_feature_names,
         yticklabels=x_feature_names,
         out_path=figures_dir / f"cross_correlation.{ext}",
@@ -224,7 +248,9 @@ def run_pipeline(
 
     # 2. Permutation test
     plot_permutation(
-        model.s, model.permuted_singular_values, model.p_values,
+        model.s,
+        model.permuted_singular_values,
+        model.p_values,
         out_path=figures_dir / f"permutation_test.{ext}",
         dpi=dpi,
     )
@@ -259,15 +285,28 @@ def run_pipeline(
     # 4. Subject score box/strip plots
     if config is not None and len(config.groups) > 0 and len(final_lv_names) > 0:
         _plot_score_boxstrips(
-            model, config, demo_aligned, subject_ids, sid,
-            final_lv_names, figures_dir, ext, dpi,
+            model,
+            config,
+            demo_aligned,
+            subject_ids,
+            sid,
+            final_lv_names,
+            figures_dir,
+            ext,
+            dpi,
         )
 
     # 5. Score scatter (correlational only)
     if method == "correlational" and config is not None and len(final_lv_names) > 0:
         _plot_score_scatters(
-            model, config, demo_aligned, sid,
-            final_lv_names, figures_dir, ext, dpi,
+            model,
+            config,
+            demo_aligned,
+            sid,
+            final_lv_names,
+            figures_dir,
+            ext,
+            dpi,
         )
 
     # 6. Additional diagnostic plots (--all-plots)
@@ -275,7 +314,8 @@ def run_pipeline(
         _plot_verbose(
             model=model,
             method=method,
-            X=X, Y=Y,
+            X=X,
+            Y=Y,
             x_feature_names=x_feature_names,
             y_feature_names=y_feature_names,
             x_colours=x_colours,
@@ -290,24 +330,27 @@ def run_pipeline(
         )
 
     # --- Write log ---
-    _write_log(output_dir, {
-        "method": method,
-        "x": str(x_path),
-        "y": str(y_path),
-        "demographics": str(demographics_path),
-        "group_col": group_col,
-        "groups": str(groups_path),
-        "subject_id": sid,
-        "n_perms": n_perms,
-        "n_bootstraps": n_bootstraps,
-        "seed": seed,
-        "format": img_format,
-        "dpi": dpi,
-        "n_subjects": len(subject_ids),
-        "n_x_features": len(x_feature_names),
-        "n_y_features": len(y_feature_names),
-        "significant_lvs": final_lv_names,
-    })
+    _write_log(
+        output_dir,
+        {
+            "method": method,
+            "x": str(x_path),
+            "y": str(y_path),
+            "demographics": str(demographics_path),
+            "group_col": group_col,
+            "groups": str(groups_path),
+            "subject_id": sid,
+            "n_perms": n_perms,
+            "n_bootstraps": n_bootstraps,
+            "seed": seed,
+            "format": img_format,
+            "dpi": dpi,
+            "n_subjects": len(subject_ids),
+            "n_x_features": len(x_feature_names),
+            "n_y_features": len(y_feature_names),
+            "significant_lvs": final_lv_names,
+        },
+    )
 
     logger.info("PLS analysis complete. Results saved to: %s", output_dir)
     logger.info("Significant and reliable LVs: %s", final_lv_names)
@@ -361,7 +404,12 @@ def cross_validate_pipeline(
         If True, generate additional diagnostic plots.
     """
     from plsdo.cross_validate import run_cv, permutation_test_cv
-    from plsdo.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix, plot_cv_convergence
+    from plsdo.plotting import (
+        plot_cv_accuracy,
+        plot_cv_permutation,
+        plot_confusion_matrix,
+        plot_cv_convergence,
+    )
 
     # --- Set up output ---
     figures_dir = output_dir / "figures"
@@ -373,12 +421,8 @@ def cross_validate_pipeline(
     y_df = load_csv(y_path, require_numeric=True)
     demographics_df = load_csv(demographics_path)
 
-    sid = detect_subject_id(
-        [y_df, demographics_df], subject_id=subject_id
-    )
-    y_aligned, demo_aligned = align_subjects(
-        [y_df, demographics_df], subject_id=sid
-    )
+    sid = detect_subject_id([y_df, demographics_df], subject_id=subject_id)
+    y_aligned, demo_aligned = align_subjects([y_df, demographics_df], subject_id=sid)
 
     check_missing_values(y_aligned, name="Y")
 
@@ -397,9 +441,12 @@ def cross_validate_pipeline(
     # --- Run CV ---
     logger.info("Running %d-fold CV with %d repeats...", n_folds, n_repeats)
     cv_result = run_cv(
-        Y, labels,
-        n_splits=n_folds, n_repeats=n_repeats,
-        n_components=n_components, seed=seed,
+        Y,
+        labels,
+        n_splits=n_folds,
+        n_repeats=n_repeats,
+        n_components=n_components,
+        seed=seed,
     )
 
     logger.info("Mean accuracy: %.3f", cv_result["mean_accuracy"])
@@ -408,19 +455,20 @@ def cross_validate_pipeline(
     # --- Permutation test ---
     logger.info("Running permutation test (%d permutations)...", n_permutations)
     perm_result = permutation_test_cv(
-        Y, labels,
+        Y,
+        labels,
         observed_accuracy=cv_result["mean_accuracy"],
-        n_splits=n_folds, n_repeats=1,
+        n_splits=n_folds,
+        n_repeats=1,
         n_components=n_components,
-        n_permutations=n_permutations, seed=seed,
+        n_permutations=n_permutations,
+        seed=seed,
     )
 
     logger.info("Permutation p-value: %.4f", perm_result["p_value"])
 
     # --- Save data ---
-    cv_result["fold_results"].to_csv(
-        data_dir_out / "cv_fold_results.csv", index=False
-    )
+    cv_result["fold_results"].to_csv(data_dir_out / "cv_fold_results.csv", index=False)
     pd.DataFrame({"null_accuracy": perm_result["null_accuracies"]}).to_csv(
         data_dir_out / "cv_permutation_accuracies.csv", index=False
     )
@@ -456,10 +504,7 @@ def cross_validate_pipeline(
     # --- Additional diagnostic plots (--all-plots) ---
     if all_plots:
         repeat_accs = (
-            cv_result["fold_results"]
-            .groupby("repeat")["accuracy"]
-            .mean()
-            .values
+            cv_result["fold_results"].groupby("repeat")["accuracy"].mean().values
         )
         plot_cv_convergence(
             repeat_accuracies=repeat_accs,
@@ -470,23 +515,26 @@ def cross_validate_pipeline(
         )
 
     # --- Log ---
-    _write_log(output_dir, {
-        "command": "cross-validate",
-        "y": str(y_path),
-        "demographics": str(demographics_path),
-        "group_col": group_col,
-        "subject_id": sid,
-        "n_folds": n_folds,
-        "n_repeats": n_repeats,
-        "n_components": n_components,
-        "n_permutations": n_permutations,
-        "seed": seed,
-        "n_subjects": len(Y),
-        "n_groups": n_groups,
-        "group_names": label_names,
-        "mean_accuracy": f"{cv_result['mean_accuracy']:.3f}",
-        "permutation_p_value": f"{perm_result['p_value']:.4f}",
-    })
+    _write_log(
+        output_dir,
+        {
+            "command": "cross-validate",
+            "y": str(y_path),
+            "demographics": str(demographics_path),
+            "group_col": group_col,
+            "subject_id": sid,
+            "n_folds": n_folds,
+            "n_repeats": n_repeats,
+            "n_components": n_components,
+            "n_permutations": n_permutations,
+            "seed": seed,
+            "n_subjects": len(Y),
+            "n_groups": n_groups,
+            "group_names": label_names,
+            "mean_accuracy": f"{cv_result['mean_accuracy']:.3f}",
+            "permutation_p_value": f"{perm_result['p_value']:.4f}",
+        },
+    )
 
     logger.info("Cross-validation complete. Results saved to: %s", output_dir)
 
@@ -586,8 +634,15 @@ def _plot_verbose(
 
 
 def _plot_score_boxstrips(
-    model, config, demo_aligned, subject_ids, sid,
-    final_lv_names, figures_dir, ext, dpi,
+    model,
+    config,
+    demo_aligned,
+    subject_ids,
+    sid,
+    final_lv_names,
+    figures_dir,
+    ext,
+    dpi,
 ):
     """Build long-format score dataframes and produce box/strip plots."""
     group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
@@ -627,7 +682,8 @@ def _plot_score_boxstrips(
             if g.order:
                 score_long_df[g.column] = pd.Categorical(
                     score_long_df[g.column],
-                    categories=g.order, ordered=True,
+                    categories=g.order,
+                    ordered=True,
                 )
 
         plot_scores_boxstrip(
@@ -642,8 +698,14 @@ def _plot_score_boxstrips(
 
 
 def _plot_score_scatters(
-    model, config, demo_aligned, sid,
-    final_lv_names, figures_dir, ext, dpi,
+    model,
+    config,
+    demo_aligned,
+    sid,
+    final_lv_names,
+    figures_dir,
+    ext,
+    dpi,
 ):
     """Produce score scatter plots (correlational PLS only)."""
     group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
@@ -664,7 +726,8 @@ def _plot_score_scatters(
 
         plot_scores_scatter(
             scatter_df=scatter_df,
-            x_col="x_score", y_col="y_score",
+            x_col="x_score",
+            y_col="y_score",
             hue_col=hue_col or sid,
             lv_name=lv_name,
             out_path=figures_dir / f"{lv_name}_scores_scatter.{ext}",

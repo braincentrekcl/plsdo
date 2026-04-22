@@ -3,10 +3,17 @@ import pandas as pd
 import pytest
 import yaml
 from plsdo.io import (
-    load_csv, detect_subject_id, align_subjects,
-    check_missing_values, check_variance, zscore_columns,
-    parse_groups_config, GroupConfig, GroupSpec,
-    load_metadata, build_design_matrix,
+    load_csv,
+    detect_subject_id,
+    align_subjects,
+    check_missing_values,
+    check_variance,
+    zscore_columns,
+    parse_groups_config,
+    GroupConfig,
+    GroupSpec,
+    load_metadata,
+    build_design_matrix,
 )
 
 
@@ -41,15 +48,11 @@ class TestLoadCsv:
 
 class TestDetectSubjectId:
     def test_explicit_subject_id(self, x_df, y_df, demographics_df):
-        sid = detect_subject_id(
-            [x_df, y_df, demographics_df], subject_id="subject_id"
-        )
+        sid = detect_subject_id([x_df, y_df, demographics_df], subject_id="subject_id")
         assert sid == "subject_id"
 
     def test_explicit_subject_id_missing_from_file(self, x_df, y_df):
-        with pytest.raises(
-            ValueError, match="not found"
-        ):
+        with pytest.raises(ValueError, match="not found"):
             detect_subject_id([x_df, y_df], subject_id="nonexistent")
 
     def test_auto_detect(self, x_df, y_df, demographics_df):
@@ -72,13 +75,9 @@ class TestDetectSubjectId:
 
 class TestAlignSubjects:
     def test_aligned_subjects_same_order(self, x_df, y_df, demographics_df):
-        aligned = align_subjects(
-            [x_df, y_df, demographics_df], subject_id="subject_id"
-        )
+        aligned = align_subjects([x_df, y_df, demographics_df], subject_id="subject_id")
         for df in aligned:
-            assert list(df["subject_id"]) == [
-                f"s{i:02d}" for i in range(1, 13)
-            ]
+            assert list(df["subject_id"]) == [f"s{i:02d}" for i in range(1, 13)]
 
     def test_reorders_mismatched(self):
         df1 = pd.DataFrame({"id": ["a", "b", "c"], "v1": [1, 2, 3]})
@@ -107,16 +106,20 @@ class TestCheckMissingValues:
         check_missing_values(df, name="test")  # should not raise
 
     def test_missing_values_raises(self):
-        df = pd.DataFrame({"id": ["a", "b"], "v1": [1.0, float("nan")], "v2": [3.0, 4.0]})
+        df = pd.DataFrame(
+            {"id": ["a", "b"], "v1": [1.0, float("nan")], "v2": [3.0, 4.0]}
+        )
         with pytest.raises(ValueError, match="missing values"):
             check_missing_values(df, name="test")
 
     def test_reports_which_subjects_and_features(self):
-        df = pd.DataFrame({
-            "id": ["a", "b", "c"],
-            "v1": [1.0, float("nan"), 3.0],
-            "v2": [float("nan"), 2.0, 4.0],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["a", "b", "c"],
+                "v1": [1.0, float("nan"), 3.0],
+                "v2": [float("nan"), 2.0, 4.0],
+            }
+        )
         with pytest.raises(ValueError, match="v1.*v2"):
             check_missing_values(df, name="test")
 
@@ -135,8 +138,9 @@ class TestCheckVariance:
         # 9 out of 10 values are identical
         arr = np.array([[1.0, 5.0]] * 9 + [[2.0, 6.0]])
         with caplog.at_level("WARNING", logger="plsdo"):
-            check_variance(arr, feature_names=["nearly_const", "varying"],
-                            near_zero_threshold=0.85)
+            check_variance(
+                arr, feature_names=["nearly_const", "varying"], near_zero_threshold=0.85
+            )
         assert "nearly_const" in caplog.text
         assert "near-zero variance" in caplog.text.lower()
 
@@ -166,23 +170,29 @@ class TestParseGroupsConfig:
 
     def test_column_not_in_demographics_raises(self, tmp_path):
         cfg = tmp_path / "bad.yaml"
-        cfg.write_text(yaml.dump({
-            "subject_id": "subject_id",
-            "groups": [{"column": "nonexistent", "role": "x_axis"}],
-        }))
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": "subject_id",
+                    "groups": [{"column": "nonexistent", "role": "x_axis"}],
+                }
+            )
+        )
         demo = pd.DataFrame({"subject_id": ["a"], "group": ["A"]})
         with pytest.raises(ValueError, match="not found in demographics"):
             parse_groups_config(cfg, demographics_df=demo)
 
     def test_warns_about_unlisted_demographics_columns(self, tmp_path, caplog):
         cfg = tmp_path / "partial.yaml"
-        cfg.write_text(yaml.dump({
-            "subject_id": "subject_id",
-            "groups": [{"column": "group", "role": "x_axis"}],
-        }))
-        demo = pd.DataFrame({
-            "subject_id": ["a"], "group": ["A"], "extra_col": [1]
-        })
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": "subject_id",
+                    "groups": [{"column": "group", "role": "x_axis"}],
+                }
+            )
+        )
+        demo = pd.DataFrame({"subject_id": ["a"], "group": ["A"], "extra_col": [1]})
         with caplog.at_level("WARNING", logger="plsdo"):
             parse_groups_config(cfg, demographics_df=demo)
         assert "extra_col" in caplog.text
@@ -195,10 +205,14 @@ class TestParseGroupsConfig:
 
     def test_invalid_role_raises(self, tmp_path):
         cfg = tmp_path / "bad_role.yaml"
-        cfg.write_text(yaml.dump({
-            "subject_id": "id",
-            "groups": [{"column": "g", "role": "invalid_role"}],
-        }))
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": "id",
+                    "groups": [{"column": "g", "role": "invalid_role"}],
+                }
+            )
+        )
         with pytest.raises(ValueError, match="Invalid role"):
             parse_groups_config(cfg)
 
@@ -229,10 +243,12 @@ class TestLoadMetadata:
 
 class TestBuildDesignMatrix:
     def test_single_factor(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2", "s3", "s4"],
-            "group": ["A", "A", "B", "B"],
-        })
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3", "s4"],
+                "group": ["A", "A", "B", "B"],
+            }
+        )
         config = GroupConfig.from_group_col("group")
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (4, 2)  # 2 levels
@@ -242,61 +258,80 @@ class TestBuildDesignMatrix:
         np.testing.assert_array_equal(X[2], [0, 1])
 
     def test_multiple_factors_additive(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2", "s3", "s4"],
-            "geno": ["WT", "WT", "KO", "KO"],
-            "drug": ["sal", "oxy", "sal", "oxy"],
-        })
-        config = GroupConfig(groups=[
-            GroupSpec(column="geno", role="x_axis"),
-            GroupSpec(column="drug", role="hue"),
-        ])
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3", "s4"],
+                "geno": ["WT", "WT", "KO", "KO"],
+                "drug": ["sal", "oxy", "sal", "oxy"],
+            }
+        )
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="geno", role="x_axis"),
+                GroupSpec(column="drug", role="hue"),
+            ]
+        )
         X, labels = build_design_matrix(demo, config)
         # 2 levels for geno + 2 levels for drug = 4 columns
         assert X.shape == (4, 4)
         assert labels == ["geno_KO", "geno_WT", "drug_oxy", "drug_sal"]
 
     def test_zero_variance_column_raises(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2"],
-            "group": ["A", "A"],  # only one level
-        })
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2"],
+                "group": ["A", "A"],  # only one level
+            }
+        )
         config = GroupConfig.from_group_col("group")
         with pytest.raises(ValueError, match="single level"):
             build_design_matrix(demo, config)
 
     def test_order_level_absent_from_data_raises(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2", "s3"],
-            "group": ["A", "A", "B"],  # C listed in order but not present
-        })
-        config = GroupConfig(groups=[
-            GroupSpec(column="group", role="x_axis", order=["A", "B", "C"]),
-        ])
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3"],
+                "group": ["A", "A", "B"],  # C listed in order but not present
+            }
+        )
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis", order=["A", "B", "C"]),
+            ]
+        )
         with pytest.raises(ValueError, match="zero variance"):
             build_design_matrix(demo, config)
 
     def test_reference_level_ordering(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2", "s3"],
-            "group": ["B", "A", "C"],
-        })
-        config = GroupConfig(groups=[
-            GroupSpec(column="group", role="x_axis", reference="A",
-                      order=["A", "B", "C"]),
-        ])
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3"],
+                "group": ["B", "A", "C"],
+            }
+        )
+        config = GroupConfig(
+            groups=[
+                GroupSpec(
+                    column="group", role="x_axis", reference="A", order=["A", "B", "C"]
+                ),
+            ]
+        )
         X, labels = build_design_matrix(demo, config)
         assert labels == ["group_A", "group_B", "group_C"]
 
     def test_ignores_ignore_role(self):
-        demo = pd.DataFrame({
-            "subject_id": ["s1", "s2"],
-            "group": ["A", "B"],
-            "cage": [1, 2],
-        })
-        config = GroupConfig(groups=[
-            GroupSpec(column="group", role="x_axis"),
-            GroupSpec(column="cage", role="ignore"),
-        ])
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2"],
+                "group": ["A", "B"],
+                "cage": [1, 2],
+            }
+        )
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="cage", role="ignore"),
+            ]
+        )
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (2, 2)  # only group, not cage

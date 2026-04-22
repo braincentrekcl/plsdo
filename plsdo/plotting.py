@@ -12,7 +12,8 @@ ANNOTATION_THRESHOLD = 30
 
 
 def figure_size(
-    n_rows: int, n_cols: int,
+    n_rows: int,
+    n_cols: int,
     cell_size: float = 0.5,
     min_dim: float = 4.0,
     max_dim: float = 40.0,
@@ -74,7 +75,9 @@ def plot_heatmap(
     fig, ax = plt.subplots(figsize=figsize)
     sns.heatmap(
         data,
-        vmin=-v, vmax=v, center=0,
+        vmin=-v,
+        vmax=v,
+        center=0,
         cmap="vlag",
         xticklabels=xticklabels,
         yticklabels=yticklabels,
@@ -117,7 +120,10 @@ def plot_permutation(
     n_rows = int(np.ceil(n_components / n_cols))
 
     fig, axs = plt.subplots(
-        n_rows, n_cols, sharex=True, sharey=True,
+        n_rows,
+        n_cols,
+        sharex=True,
+        sharey=True,
         figsize=(3 * n_cols, 2.5 * n_rows),
     )
     axs_flat = np.atleast_1d(axs).flat
@@ -170,7 +176,8 @@ def plot_loadings(
     sorted_se = se[sort_idx]
     sorted_names = [feature_names[i] for i in sort_idx]
     sorted_colours = (
-        [colours[i] for i in sort_idx] if colours is not None
+        [colours[i] for i in sort_idx]
+        if colours is not None
         else ["steelblue"] * n_features
     )
 
@@ -240,7 +247,10 @@ def plot_scores_boxstrip(
 
     g = sns.catplot(
         data=scores_df,
-        x=x_col, y=y_col, hue=hue, col=col_col,
+        x=x_col,
+        y=y_col,
+        hue=hue,
+        col=col_col,
         order=order,
         kind="box",
         sharex=False,
@@ -258,10 +268,18 @@ def plot_scores_boxstrip(
         else sorted(scores_df[hue].unique())
     )
     g.map(
-        sns.stripplot, x_col, y_col, hue,
-        order=order, hue_order=hue_order,
-        size=5, dodge=True, palette="Set2",
-        jitter=True, linewidth=1, edgecolor=".5",
+        sns.stripplot,
+        x_col,
+        y_col,
+        hue,
+        order=order,
+        hue_order=hue_order,
+        size=5,
+        dodge=True,
+        palette="Set2",
+        jitter=True,
+        linewidth=1,
+        edgecolor=".5",
     )
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
@@ -297,7 +315,9 @@ def plot_scores_scatter(
     kwargs = {"col": col_col} if col_col else {}
     g = sns.lmplot(
         data=scatter_df,
-        x=x_col, y=y_col, hue=hue_col,
+        x=x_col,
+        y=y_col,
+        hue=hue_col,
         palette="Set2",
         scatter_kws={"edgecolor": "gray"},
         line_kws={"alpha": 0.5, "linestyle": "--"},
@@ -325,11 +345,15 @@ def plot_cv_accuracy(
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.hist(fold_accuracies, bins=20, color="steelblue", edgecolor="white")
     ax.axvline(
-        mean_accuracy, color="red", linestyle="--",
+        mean_accuracy,
+        color="red",
+        linestyle="--",
         label=f"Mean = {mean_accuracy:.3f}",
     )
     ax.axvline(
-        chance_level, color="gray", linestyle=":",
+        chance_level,
+        color="gray",
+        linestyle=":",
         label=f"Chance = {chance_level:.3f}",
     )
     ax.set_xlabel("Fold accuracy")
@@ -354,11 +378,17 @@ def plot_cv_permutation(
     """
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.hist(
-        null_accuracies, bins=40, color="gray",
-        edgecolor="white", alpha=0.7,
+        null_accuracies,
+        bins=40,
+        color="gray",
+        edgecolor="white",
+        alpha=0.7,
     )
     ax.axvline(
-        observed_accuracy, color="red", linestyle="--", linewidth=2,
+        observed_accuracy,
+        color="red",
+        linestyle="--",
+        linewidth=2,
         label=f"Observed = {observed_accuracy:.3f}",
     )
     ax.set_xlabel("Mean CV accuracy (permuted labels)")
@@ -390,14 +420,13 @@ def meta_colours(
     if meta_df is None or "category" not in meta_df.columns:
         return None
     colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
-    palette = dict(zip(
-        meta_df["category"].unique(),
-        sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
-    ))
-    return [
-        palette.get(colour_map.get(f), "steelblue")
-        for f in feature_names
-    ]
+    palette = dict(
+        zip(
+            meta_df["category"].unique(),
+            sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
+        )
+    )
+    return [palette.get(colour_map.get(f), "steelblue") for f in feature_names]
 
 
 def plot_lv_heatmap(
@@ -435,7 +464,8 @@ def plot_lv_heatmap(
     """
     lv_matrix = s[lv_idx] * np.outer(u[:, lv_idx], vt[lv_idx, :])
     plot_heatmap(
-        lv_matrix, v=1.0,
+        lv_matrix,
+        v=1.0,
         xticklabels=y_feature_names,
         yticklabels=x_feature_names,
         out_path=out_path,
@@ -475,7 +505,8 @@ def plot_bootstrap_heatmap(
     dpi : int
     """
     plot_heatmap(
-        bootstrap_ratios, v=v,
+        bootstrap_ratios,
+        v=v,
         xticklabels=lv_names,
         yticklabels=feature_names,
         out_path=out_path,
@@ -526,9 +557,11 @@ def plot_raw_distributions(
 
     g = sns.catplot(
         data=long_df,
-        x=group_col, y="z-score",
+        x=group_col,
+        y="z-score",
         hue=group_col,
-        col="feature", col_wrap=col_wrap,
+        col="feature",
+        col_wrap=col_wrap,
         order=order,
         kind="box",
         palette="Set2",
@@ -540,10 +573,18 @@ def plot_raw_distributions(
         sharex=False,
     )
     g.map(
-        sns.stripplot, group_col, "z-score", group_col,
-        order=order, hue_order=order,
-        size=5, dodge=True, palette="Set2",
-        jitter=True, linewidth=1, edgecolor=".5",
+        sns.stripplot,
+        group_col,
+        "z-score",
+        group_col,
+        order=order,
+        hue_order=order,
+        size=5,
+        dodge=True,
+        palette="Set2",
+        jitter=True,
+        linewidth=1,
+        edgecolor=".5",
     )
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
@@ -620,11 +661,16 @@ def plot_cv_convergence(
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(np.arange(1, n + 1), cumulative_mean, color="steelblue")
     ax.axhline(
-        final_mean, color="red", linestyle="--", alpha=0.5,
+        final_mean,
+        color="red",
+        linestyle="--",
+        alpha=0.5,
         label=f"Final mean = {final_mean:.3f}",
     )
     ax.axhline(
-        chance_level, color="gray", linestyle=":",
+        chance_level,
+        color="gray",
+        linestyle=":",
         label=f"Chance = {chance_level:.3f}",
     )
     ax.set_xlabel("Number of repeats completed")
@@ -651,7 +697,8 @@ def plot_confusion_matrix(
 
     fig, ax = plt.subplots(figsize=(6, 5))
     disp = ConfusionMatrixDisplay(
-        confusion_matrix=cm, display_labels=label_names,
+        confusion_matrix=cm,
+        display_labels=label_names,
     )
     disp.plot(ax=ax, cmap="Blues", values_format=".0%")
     ax.set_title(f"CV confusion matrix\nAccuracy: {mean_accuracy:.1%}")

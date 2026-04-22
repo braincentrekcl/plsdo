@@ -68,9 +68,7 @@ class TestPLSFit:
         model = PLS(X, Y)
         model.fit()
 
-        assert all(
-            model.s[i] >= model.s[i + 1] for i in range(len(model.s) - 1)
-        )
+        assert all(model.s[i] >= model.s[i + 1] for i in range(len(model.s) - 1))
 
 
 class TestPermutationTest:
@@ -179,9 +177,7 @@ class TestBootstrap:
         m2.fit()
         m2.bootstrap(n_bootstraps=100)
 
-        np.testing.assert_array_equal(
-            m1.u_bootstrap_ratios, m2.u_bootstrap_ratios
-        )
+        np.testing.assert_array_equal(m1.u_bootstrap_ratios, m2.u_bootstrap_ratios)
 
 
 class TestBootstrapZscoreX:
@@ -192,6 +188,7 @@ class TestBootstrapZscoreX:
         X = rng.integers(0, 2, size=(20, 3)).astype(float)
         Y = rng.standard_normal((20, 4))
         from plsdo.io import zscore_columns
+
         Y = zscore_columns(Y)
 
         model_no_zx = PLS(X.copy(), Y.copy(), seed=42, zscore_x=False)
@@ -206,6 +203,7 @@ class TestBootstrapZscoreX:
         rng = np.random.default_rng(1)
         X = rng.integers(0, 2, size=(20, 3)).astype(float)
         from plsdo.io import zscore_columns
+
         Y = zscore_columns(rng.standard_normal((20, 4)))
 
         m_true = PLS(X.copy(), Y.copy(), seed=42, zscore_x=True)
@@ -251,16 +249,20 @@ class TestFilterLVs:
         # Manually set bootstrap ratios:
         # LV1: reliable on both sides (|BSR| > 1.96)
         # LV3: reliable on X but not Y
-        model.u_bootstrap_ratios = np.array([
-            [3.0, 0.5, 2.5],  # feature 1
-            [0.1, 0.1, 0.1],  # feature 2
-            [2.1, 0.3, 2.0],  # feature 3
-        ])
-        model.vt_bootstrap_ratios = np.array([
-            [2.5, 0.2, 0.5],  # LV1: reliable
-            [0.1, 0.1, 0.1],  # LV2: not reliable
-            [1.0, 0.3, 1.5],  # LV3: not reliable (no feature > 1.96)
-        ])
+        model.u_bootstrap_ratios = np.array(
+            [
+                [3.0, 0.5, 2.5],  # feature 1
+                [0.1, 0.1, 0.1],  # feature 2
+                [2.1, 0.3, 2.0],  # feature 3
+            ]
+        )
+        model.vt_bootstrap_ratios = np.array(
+            [
+                [2.5, 0.2, 0.5],  # LV1: reliable
+                [0.1, 0.1, 0.1],  # LV2: not reliable
+                [1.0, 0.3, 1.5],  # LV3: not reliable (no feature > 1.96)
+            ]
+        )
 
         model.filter_lvs()
 
