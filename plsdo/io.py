@@ -431,7 +431,16 @@ def build_design_matrix(
         dummies = pd.get_dummies(col).reindex(columns=ordered_levels, fill_value=0)
         labels = [f"{spec.column}_{level}" for level in ordered_levels]
 
-        all_dummies.append(dummies.to_numpy(dtype=float))
+        dummy_arr = dummies.to_numpy(dtype=float)
+        zero_var_mask = dummy_arr.sum(axis=0) == 0
+        if zero_var_mask.any():
+            zero_var = [labels[i] for i in np.where(zero_var_mask)[0]]
+            raise ValueError(
+                f"Dummy columns with no subjects (zero variance): {zero_var}. "
+                f"Check that all levels listed in 'order' are present in the data."
+            )
+
+        all_dummies.append(dummy_arr)
         all_labels.extend(labels)
 
     X = np.concatenate(all_dummies, axis=1)

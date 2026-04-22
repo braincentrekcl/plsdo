@@ -266,6 +266,17 @@ class TestBuildDesignMatrix:
         with pytest.raises(ValueError, match="single level"):
             build_design_matrix(demo, config)
 
+    def test_order_level_absent_from_data_raises(self):
+        demo = pd.DataFrame({
+            "subject_id": ["s1", "s2", "s3"],
+            "group": ["A", "A", "B"],  # C listed in order but not present
+        })
+        config = GroupConfig(groups=[
+            GroupSpec(column="group", role="x_axis", order=["A", "B", "C"]),
+        ])
+        with pytest.raises(ValueError, match="zero variance"):
+            build_design_matrix(demo, config)
+
     def test_reference_level_ordering(self):
         demo = pd.DataFrame({
             "subject_id": ["s1", "s2", "s3"],
