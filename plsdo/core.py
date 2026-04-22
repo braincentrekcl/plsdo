@@ -47,8 +47,8 @@ class PLS:
         """Run PLS: cross-covariance, SVD, loadings, and subject scores."""
         self.xcorr = self.X.T @ self.Y / (self.n_subjects - 1)
         self._decompose()
-        self.u_loadings = self.u @ np.diag(self.s)
-        self.vt_loadings = np.diag(self.s) @ self.vt
+        self.u_loadings = self.u * self.s[np.newaxis, :]
+        self.vt_loadings = self.s[:, np.newaxis] * self.vt
         self.x_scores = self.X @ self.u
         self.y_scores = self.Y @ self.vt.T
         self._fitted = True
@@ -134,8 +134,8 @@ class PLS:
             # Procrustes: rotate bootstrap Vt to align with reference
             Q, _ = orthogonal_procrustes(boot_vt.T, self.vt.T)
 
-            boot_u_load = boot_u @ np.diag(boot_s)
-            boot_vt_load = np.diag(boot_s) @ boot_vt
+            boot_u_load = boot_u * boot_s[np.newaxis, :]
+            boot_vt_load = boot_s[:, np.newaxis] * boot_vt
 
             aligned_u_load = boot_u_load @ Q
             aligned_vt_load = Q.T @ boot_vt_load
