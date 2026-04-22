@@ -468,21 +468,25 @@ def _plot_score_boxstrips(
     )
 
     final_lv_indices = np.where(model.final_lvs)[0]
-    for score_side, score_matrix in [("X", model.x_scores), ("Y", model.y_scores)]:
-        score_long = []
-        for i, lv_name in enumerate(final_lv_names):
-            lv_idx = final_lv_indices[i]
-            for subj_i, subj_id in enumerate(subject_ids):
-                row = {
-                    sid: subj_id,
-                    "score": score_matrix[subj_i, lv_idx],
-                    "LV": lv_name,
-                }
-                for g in group_cols_to_use:
-                    row[g.column] = demo_aligned.iloc[subj_i][g.column]
-                score_long.append(row)
+    group_col_names = [g.column for g in group_cols_to_use]
+    demo_cols = demo_aligned[group_col_names].reset_index(drop=True)
 
-        score_long_df = pd.DataFrame(score_long)
+    for score_side, score_matrix in [("X", model.x_scores), ("Y", model.y_scores)]:
+        wide = pd.DataFrame(
+            score_matrix[:, final_lv_indices],
+            columns=final_lv_names,
+        )
+        wide[sid] = subject_ids
+        for col in group_col_names:
+            wide[col] = demo_cols[col].values
+
+        score_long_df = wide.melt(
+            id_vars=[sid] + group_col_names,
+            value_vars=final_lv_names,
+            var_name="LV",
+            value_name="score",
+        )
+
         for g in group_cols_to_use:
             if g.order:
                 score_long_df[g.column] = pd.Categorical(
