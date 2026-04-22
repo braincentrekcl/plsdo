@@ -164,7 +164,7 @@ def run_pipeline(
     y_meta_df = load_metadata(y_meta_path, y_feature_names) if y_meta_path else None
 
     # --- Run PLS ---
-    model = PLS(X, Y, seed=seed)
+    model = PLS(X, Y, seed=seed, zscore_x=(method == "correlational"))
     model.fit()
     model.permutation_test(n_perms=n_perms)
     model.bootstrap(n_bootstraps=n_bootstraps)

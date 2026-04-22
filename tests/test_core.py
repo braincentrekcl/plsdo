@@ -184,6 +184,41 @@ class TestBootstrap:
         )
 
 
+class TestBootstrapZscoreX:
+    def test_zscore_x_false_does_not_alter_dummy_x(self):
+        """Bootstrap with zscore_x=False must leave integer dummy X unchanged."""
+        rng = np.random.default_rng(0)
+        # Binary dummy matrix (discriminatory-style X)
+        X = rng.integers(0, 2, size=(20, 3)).astype(float)
+        Y = rng.standard_normal((20, 4))
+        from plsdo.io import zscore_columns
+        Y = zscore_columns(Y)
+
+        model_no_zx = PLS(X.copy(), Y.copy(), seed=42, zscore_x=False)
+        model_no_zx.fit()
+        model_no_zx.bootstrap(n_bootstraps=50)
+
+        # X stored on the model must be unchanged (no in-place mutation)
+        np.testing.assert_array_equal(model_no_zx.X, X)
+
+    def test_zscore_x_true_and_false_differ(self):
+        """Bootstrap ratios should differ when zscore_x differs."""
+        rng = np.random.default_rng(1)
+        X = rng.integers(0, 2, size=(20, 3)).astype(float)
+        from plsdo.io import zscore_columns
+        Y = zscore_columns(rng.standard_normal((20, 4)))
+
+        m_true = PLS(X.copy(), Y.copy(), seed=42, zscore_x=True)
+        m_true.fit()
+        m_true.bootstrap(n_bootstraps=50)
+
+        m_false = PLS(X.copy(), Y.copy(), seed=42, zscore_x=False)
+        m_false.fit()
+        m_false.bootstrap(n_bootstraps=50)
+
+        assert not np.allclose(m_true.u_bootstrap_ratios, m_false.u_bootstrap_ratios)
+
+
 class TestFilterLVs:
     def test_before_permutation_raises(self, x_array, y_array):
         from plsdo.io import zscore_columns

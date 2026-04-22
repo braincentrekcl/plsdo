@@ -22,13 +22,24 @@ class PLS:
         Second data matrix (already z-scored).
     seed : int, optional
         Random seed for reproducibility.
+    zscore_x : bool
+        Whether to re-z-score X in each bootstrap resample. True for
+        correlational PLS (continuous X); False for discriminatory PLS
+        (dummy-coded X must not be z-scored).
     """
 
-    def __init__(self, X: np.ndarray, Y: np.ndarray, seed: int | None = None):
+    def __init__(
+        self,
+        X: np.ndarray,
+        Y: np.ndarray,
+        seed: int | None = None,
+        zscore_x: bool = True,
+    ):
         self.X = X
         self.Y = Y
         self.n_subjects = X.shape[0]
         self.seed = seed
+        self._zscore_x = zscore_x
         self._rng = np.random.default_rng(seed)
         self._fitted = False
 
@@ -112,7 +123,7 @@ class PLS:
 
         for _ in range(n_bootstraps):
             idx = boot_rng.choice(row_idx, size=self.n_subjects, replace=True)
-            x_boot = zscore_columns(self.X[idx, :])
+            x_boot = zscore_columns(self.X[idx, :]) if self._zscore_x else self.X[idx, :]
             y_boot = zscore_columns(self.Y[idx, :])
 
             boot_xcorr = x_boot.T @ y_boot / (self.n_subjects - 1)
