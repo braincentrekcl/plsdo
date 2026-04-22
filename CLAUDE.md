@@ -50,6 +50,8 @@ Four principles, in priority order:
 
 Practical consequences: prefer stdlib over third-party where reasonable (argparse over click, logging over print). Do not add inference or statistical tests beyond PLS itself — plotting scores by group factors is in scope; pairwise post-hoc tests are not. When in doubt, do less.
 
+**Efficiency** is part of correctness. Prefer vectorised NumPy operations over Python loops wherever the maths permits — not for micro-optimisation, but because this code runs on HPCs and environmental cost is real. If a loop can be replaced by array operations without adding complexity or obscuring intent, replace it.
+
 **Robustness** sits inside principle 1, not alongside it. Validate aggressively anywhere a silent failure could propagate — at file boundaries and wherever mathematical assumptions could be violated (zero variance before z-scoring, empty group levels before dummy coding, etc.). Fail loudly with informative errors. Trust internal transformations between already-validated states; defensive checks between modules add noise without catching anything real.
 
 ## Conventions
