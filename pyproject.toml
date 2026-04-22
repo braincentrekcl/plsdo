@@ -33,7 +33,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cv = [
-    "scikit-learn",
+    "scikit-learn>=1.2",
 ]
 dev = [
     "pytest",

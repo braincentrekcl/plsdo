@@ -3,14 +3,15 @@
 ## Installation
 
 ```bash
-uv venv .venv
-source .venv/bin/activate
-uv pip install plsdo
+git clone https://github.com/braincentrekcl/plsdo.git
+cd plsdo
+uv venv .venv && source .venv/bin/activate
+uv pip install -e .
 ```
 
 For discriminatory PLS with cross-validation (requires scikit-learn):
 ```bash
-uv pip install "plsdo[cv]"
+uv pip install -e ".[cv]"
 ```
 
 For development:

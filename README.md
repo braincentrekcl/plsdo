@@ -11,6 +11,8 @@ Partial Least Squares (PLS) covariance analysis with permutation testing, bootst
 
 Statistical validity is built in: every analysis runs a permutation test on singular values and bootstraps loading stability. Only latent variables that pass both tests appear in the output.
 
+> **Early alpha.** The API and output format may change before the first stable release. Feedback and bug reports are very welcome — please open an issue.
+
 ---
 
 ## Installation
@@ -18,20 +20,15 @@ Statistical validity is built in: every analysis runs a permutation test on sing
 Requires Python ≥ 3.10.
 
 ```bash
-uv venv .venv
-source .venv/bin/activate
-uv pip install plsdo
+git clone https://github.com/braincentrekcl/plsdo.git
+cd plsdo
+uv venv .venv && source .venv/bin/activate
+uv pip install -e .
 ```
 
 For discriminatory PLS with cross-validation (requires scikit-learn):
 ```bash
-uv pip install "plsdo[cv]"
-```
-
-Or with pip:
-```bash
-pip install plsdo
-pip install "plsdo[cv]"   # for cross-validation
+uv pip install -e ".[cv]"
 ```
 
 ---
