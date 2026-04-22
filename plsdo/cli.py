@@ -97,6 +97,8 @@ def pls_main(argv=None):
                            help="Number of permutations for CV test (default: 1000)")
     cv_parser.add_argument("--seed", default=42, type=int,
                            help="Random seed (default: 42)")
+    cv_parser.add_argument("--all-plots", action="store_true", default=False,
+                           help="Generate all plots including diagnostics")
     cv_parser.add_argument("--format", dest="img_format", default="svg",
                            choices=["svg", "png"],
                            help="Image format (default: svg)")
@@ -165,6 +167,7 @@ def _dispatch_run(args):
         seed=args.seed,
         img_format=args.img_format,
         dpi=args.dpi,
+        all_plots=args.all_plots,
     )
 
 
@@ -185,4 +188,5 @@ def _dispatch_cross_validate(args):
         seed=args.seed,
         img_format=args.img_format,
         dpi=args.dpi,
+        all_plots=args.all_plots,
     )

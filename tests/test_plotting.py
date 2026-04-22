@@ -9,6 +9,8 @@ from plsdo.plotting import (
     figure_size, plot_heatmap, plot_permutation,
     plot_loadings, plot_scores_boxstrip, plot_scores_scatter,
     plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix,
+    plot_lv_heatmap, plot_bootstrap_heatmap, plot_raw_distributions,
+    plot_scree, plot_cv_convergence,
 )
 
 
@@ -175,5 +177,143 @@ class TestCVPlots:
         plot_confusion_matrix(
             cm=cm, label_names=["A", "B", "C"],
             mean_accuracy=0.73, out_path=out,
+        )
+        assert out.exists()
+
+
+class TestPlotLvHeatmap:
+    def test_saves_file(self, tmp_output):
+        rng = np.random.default_rng(0)
+        u = rng.standard_normal((5, 3))
+        s = np.array([2.0, 1.5, 0.5])
+        vt = rng.standard_normal((3, 4))
+        out = tmp_output / "lv_heatmap.svg"
+        plot_lv_heatmap(
+            lv_idx=0, u=u, s=s, vt=vt,
+            x_feature_names=["x1", "x2", "x3", "x4", "x5"],
+            y_feature_names=["y1", "y2", "y3", "y4"],
+            out_path=out,
+        )
+        assert out.exists()
+        assert out.stat().st_size > 0
+
+    def test_each_lv_different_output(self, tmp_output):
+        rng = np.random.default_rng(1)
+        u = rng.standard_normal((5, 3))
+        s = np.array([2.0, 1.5, 0.5])
+        vt = rng.standard_normal((3, 4))
+        x_names = ["x1", "x2", "x3", "x4", "x5"]
+        y_names = ["y1", "y2", "y3", "y4"]
+        for i in range(3):
+            out = tmp_output / f"lv{i}_heatmap.svg"
+            plot_lv_heatmap(lv_idx=i, u=u, s=s, vt=vt,
+                            x_feature_names=x_names, y_feature_names=y_names,
+                            out_path=out)
+            assert out.exists()
+
+
+class TestPlotBootstrapHeatmap:
+    def test_saves_file(self, tmp_output):
+        rng = np.random.default_rng(0)
+        bsr = rng.standard_normal((5, 2))
+        out = tmp_output / "bsr_heatmap.svg"
+        plot_bootstrap_heatmap(
+            bootstrap_ratios=bsr,
+            feature_names=["f1", "f2", "f3", "f4", "f5"],
+            lv_names=["LV1", "LV2"],
+            out_path=out,
+        )
+        assert out.exists()
+        assert out.stat().st_size > 0
+
+    def test_single_lv(self, tmp_output):
+        rng = np.random.default_rng(0)
+        bsr = rng.standard_normal((4, 1))
+        out = tmp_output / "bsr_single.svg"
+        plot_bootstrap_heatmap(
+            bootstrap_ratios=bsr,
+            feature_names=["f1", "f2", "f3", "f4"],
+            lv_names=["LV1"],
+            out_path=out,
+        )
+        assert out.exists()
+
+
+class TestPlotRawDistributions:
+    def test_saves_file(self, tmp_output):
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal((12, 3))
+        group_labels = ["A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C", "C"]
+        out = tmp_output / "raw_dist.svg"
+        plot_raw_distributions(
+            data=data,
+            feature_names=["feat1", "feat2", "feat3"],
+            group_labels=group_labels,
+            group_col="group",
+            out_path=out,
+        )
+        assert out.exists()
+        assert out.stat().st_size > 0
+
+    def test_single_feature(self, tmp_output):
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal((8, 1))
+        group_labels = ["A"] * 4 + ["B"] * 4
+        out = tmp_output / "raw_dist_single.svg"
+        plot_raw_distributions(
+            data=data,
+            feature_names=["feat1"],
+            group_labels=group_labels,
+            group_col="group",
+            out_path=out,
+        )
+        assert out.exists()
+
+
+class TestPlotScree:
+    def test_saves_file(self, tmp_output):
+        s = np.array([2.5, 1.5, 0.8, 0.4])
+        p_values = np.array([0.01, 0.03, 0.20, 0.80])
+        out = tmp_output / "scree.svg"
+        plot_scree(s=s, p_values=p_values, out_path=out)
+        assert out.exists()
+        assert out.stat().st_size > 0
+
+    def test_all_significant(self, tmp_output):
+        s = np.array([3.0, 2.0, 1.0])
+        p_values = np.array([0.001, 0.01, 0.04])
+        out = tmp_output / "scree_sig.svg"
+        plot_scree(s=s, p_values=p_values, out_path=out)
+        assert out.exists()
+
+    def test_none_significant(self, tmp_output):
+        s = np.array([1.0, 0.8])
+        p_values = np.array([0.10, 0.50])
+        out = tmp_output / "scree_ns.svg"
+        plot_scree(s=s, p_values=p_values, out_path=out)
+        assert out.exists()
+
+
+class TestPlotCvConvergence:
+    def test_saves_file(self, tmp_output):
+        rng = np.random.default_rng(0)
+        repeat_accs = rng.uniform(0.4, 0.7, size=20)
+        out = tmp_output / "cv_convergence.svg"
+        plot_cv_convergence(
+            repeat_accuracies=repeat_accs,
+            final_mean=float(repeat_accs.mean()),
+            chance_level=0.25,
+            out_path=out,
+        )
+        assert out.exists()
+        assert out.stat().st_size > 0
+
+    def test_single_repeat(self, tmp_output):
+        out = tmp_output / "cv_conv_single.svg"
+        plot_cv_convergence(
+            repeat_accuracies=np.array([0.60]),
+            final_mean=0.60,
+            chance_level=0.33,
+            out_path=out,
         )
         assert out.exists()

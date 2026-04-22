@@ -23,9 +23,13 @@ from plsdo.io import (
 )
 from plsdo.plotting import (
     meta_colours,
+    plot_bootstrap_heatmap,
     plot_heatmap,
     plot_loadings,
+    plot_lv_heatmap,
     plot_permutation,
+    plot_raw_distributions,
+    plot_scree,
     plot_scores_boxstrip,
     plot_scores_scatter,
 )
@@ -68,6 +72,7 @@ def run_pipeline(
     seed: int = 42,
     img_format: str = "svg",
     dpi: int = 300,
+    all_plots: bool = False,
 ) -> None:
     """Run a full PLS analysis pipeline.
 
@@ -101,6 +106,8 @@ def run_pipeline(
         "svg" or "png".
     dpi : int
         Output image resolution.
+    all_plots : bool
+        If True, generate additional diagnostic plots.
     """
     # --- Set up output directory ---
     figures_dir = output_dir / "figures"
@@ -263,6 +270,25 @@ def run_pipeline(
             final_lv_names, figures_dir, ext, dpi,
         )
 
+    # 6. Additional diagnostic plots (--all-plots)
+    if all_plots:
+        _plot_verbose(
+            model=model,
+            method=method,
+            X=X, Y=Y,
+            x_feature_names=x_feature_names,
+            y_feature_names=y_feature_names,
+            x_colours=x_colours,
+            y_colours=y_colours,
+            final_lv_indices=final_lv_indices,
+            final_lv_names=final_lv_names,
+            config=config,
+            demo_aligned=demo_aligned,
+            figures_dir=figures_dir,
+            ext=ext,
+            dpi=dpi,
+        )
+
     # --- Write log ---
     _write_log(output_dir, {
         "method": method,
@@ -301,6 +327,7 @@ def cross_validate_pipeline(
     seed: int = 42,
     img_format: str = "svg",
     dpi: int = 300,
+    all_plots: bool = False,
 ) -> None:
     """Run cross-validation pipeline for discriminatory PLS.
 
@@ -330,9 +357,11 @@ def cross_validate_pipeline(
         "svg" or "png".
     dpi : int
         Output image resolution.
+    all_plots : bool
+        If True, generate additional diagnostic plots.
     """
     from plsdo.cross_validate import run_cv, permutation_test_cv
-    from plsdo.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix
+    from plsdo.plotting import plot_cv_accuracy, plot_cv_permutation, plot_confusion_matrix, plot_cv_convergence
 
     # --- Set up output ---
     figures_dir = output_dir / "figures"
@@ -424,6 +453,22 @@ def cross_validate_pipeline(
         dpi=dpi,
     )
 
+    # --- Additional diagnostic plots (--all-plots) ---
+    if all_plots:
+        repeat_accs = (
+            cv_result["fold_results"]
+            .groupby("repeat")["accuracy"]
+            .mean()
+            .values
+        )
+        plot_cv_convergence(
+            repeat_accuracies=repeat_accs,
+            final_mean=cv_result["mean_accuracy"],
+            chance_level=chance,
+            out_path=figures_dir / f"cv_convergence.{ext}",
+            dpi=dpi,
+        )
+
     # --- Log ---
     _write_log(output_dir, {
         "command": "cross-validate",
@@ -447,6 +492,97 @@ def cross_validate_pipeline(
 
 
 # --- Private helpers ---
+
+
+def _plot_verbose(
+    *,
+    model,
+    method: str,
+    X: np.ndarray,
+    Y: np.ndarray,
+    x_feature_names: list,
+    y_feature_names: list,
+    x_colours,
+    y_colours,
+    final_lv_indices: np.ndarray,
+    final_lv_names: list,
+    config,
+    demo_aligned,
+    figures_dir: Path,
+    ext: str,
+    dpi: int,
+) -> None:
+    """Generate additional diagnostic plots when --all-plots is requested."""
+    n_components = len(model.s)
+
+    # Scree plot — all LVs
+    plot_scree(
+        s=model.s,
+        p_values=model.p_values,
+        out_path=figures_dir / f"scree.{ext}",
+        dpi=dpi,
+    )
+
+    # LV heatmaps — rank-1 reconstruction of R for each LV
+    for i in range(n_components):
+        plot_lv_heatmap(
+            lv_idx=i,
+            u=model.u,
+            s=model.s,
+            vt=model.vt,
+            x_feature_names=x_feature_names,
+            y_feature_names=y_feature_names,
+            out_path=figures_dir / f"LV{i + 1}_heatmap.{ext}",
+            x_colours=x_colours,
+            y_colours=y_colours,
+            dpi=dpi,
+        )
+
+    # Bootstrap ratio heatmaps — significant and reliable LVs only
+    if len(final_lv_names) > 0:
+        plot_bootstrap_heatmap(
+            bootstrap_ratios=model.u_bootstrap_ratios[:, final_lv_indices],
+            feature_names=x_feature_names,
+            lv_names=final_lv_names,
+            out_path=figures_dir / f"X_bootstrap_heatmap.{ext}",
+            colours=x_colours,
+            dpi=dpi,
+        )
+        plot_bootstrap_heatmap(
+            bootstrap_ratios=model.vt_bootstrap_ratios[final_lv_indices, :].T,
+            feature_names=y_feature_names,
+            lv_names=final_lv_names,
+            out_path=figures_dir / f"Y_bootstrap_heatmap.{ext}",
+            colours=y_colours,
+            dpi=dpi,
+        )
+
+    # Raw distribution plots — z-scored features by group
+    if config is not None:
+        group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
+        if group_cols_to_use:
+            x_axis_col = next(
+                (g.column for g in group_cols_to_use if g.role == "x_axis"),
+                group_cols_to_use[0].column,
+            )
+            group_labels = demo_aligned[x_axis_col].values
+            plot_raw_distributions(
+                data=Y,
+                feature_names=y_feature_names,
+                group_labels=group_labels,
+                group_col=x_axis_col,
+                out_path=figures_dir / f"Y_raw_distributions.{ext}",
+                dpi=dpi,
+            )
+            if method == "correlational":
+                plot_raw_distributions(
+                    data=X,
+                    feature_names=x_feature_names,
+                    group_labels=group_labels,
+                    group_col=x_axis_col,
+                    out_path=figures_dir / f"X_raw_distributions.{ext}",
+                    dpi=dpi,
+                )
 
 
 def _plot_score_boxstrips(

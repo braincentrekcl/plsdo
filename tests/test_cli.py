@@ -82,6 +82,25 @@ class TestRunValidation:
         assert "mutually exclusive" in captured.err.lower()
 
 
+    def test_all_plots_creates_verbose_figures(self, data_dir, tmp_path):
+        out = tmp_path / "out_allplots"
+        pls_main([
+            "run", "--method", "d",
+            "--y", str(data_dir / "behaviour.csv"),
+            "--demographics", str(data_dir / "demographics.csv"),
+            "--group-col", "group",
+            "--subject-id", "subject_id",
+            "--output", str(out),
+            "--n-perms", "10",
+            "--n-bootstraps", "10",
+            "--all-plots",
+        ])
+        figs = out / "figures"
+        assert (figs / "scree.svg").exists()
+        assert (figs / "LV1_heatmap.svg").exists()
+        assert (figs / "Y_raw_distributions.svg").exists()
+
+
 class TestCrossValidate:
     def test_requires_group_col(self, data_dir, tmp_path):
         with pytest.raises(SystemExit) as exc_info:
@@ -109,3 +128,19 @@ class TestCrossValidate:
         assert (out / "figures").exists()
         assert (out / "data").exists()
         assert (out / "log.txt").exists()
+
+    def test_all_plots_creates_convergence_figure(self, data_dir, tmp_path):
+        out = tmp_path / "cv_allplots"
+        pls_main([
+            "cross-validate",
+            "--y", str(data_dir / "behaviour.csv"),
+            "--demographics", str(data_dir / "demographics.csv"),
+            "--group-col", "group",
+            "--subject-id", "subject_id",
+            "--output", str(out),
+            "--n-folds", "3",
+            "--n-repeats", "5",
+            "--n-permutations", "10",
+            "--all-plots",
+        ])
+        assert (out / "figures" / "cv_convergence.svg").exists()

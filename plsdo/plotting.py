@@ -396,6 +396,242 @@ def meta_colours(
     ]
 
 
+def plot_lv_heatmap(
+    lv_idx: int,
+    u: np.ndarray,
+    s: np.ndarray,
+    vt: np.ndarray,
+    x_feature_names: list[str],
+    y_feature_names: list[str],
+    out_path: Path,
+    x_colours: Optional[list] = None,
+    y_colours: Optional[list] = None,
+    dpi: int = 300,
+) -> None:
+    """Plot the rank-1 reconstruction of R for a single latent variable.
+
+    Reference: correlational_pls.ipynb cells 33-34.
+
+    Parameters
+    ----------
+    lv_idx : int
+        Zero-based index of the latent variable to plot.
+    u : ndarray, shape (n_x, n_components)
+        Left singular vectors from SVD.
+    s : ndarray, shape (n_components,)
+        Singular values.
+    vt : ndarray, shape (n_components, n_y)
+        Right singular vectors (transposed) from SVD.
+    x_feature_names : list of str
+    y_feature_names : list of str
+    out_path : Path
+    x_colours, y_colours : list, optional
+        Row/column colour bars from metadata categories.
+    dpi : int
+    """
+    lv_matrix = s[lv_idx] * np.outer(u[:, lv_idx], vt[lv_idx, :])
+    plot_heatmap(
+        lv_matrix, v=1.0,
+        xticklabels=y_feature_names,
+        yticklabels=x_feature_names,
+        out_path=out_path,
+        subtitle=f"LV{lv_idx + 1} rank-1 reconstruction",
+        row_colors=x_colours,
+        col_colors=y_colours,
+        dpi=dpi,
+    )
+
+
+def plot_bootstrap_heatmap(
+    bootstrap_ratios: np.ndarray,
+    feature_names: list[str],
+    lv_names: list[str],
+    out_path: Path,
+    v: float = 3.5,
+    colours: Optional[list] = None,
+    dpi: int = 300,
+) -> None:
+    """Plot a heatmap of bootstrap ratios for one side (X or Y).
+
+    Reference: correlational_pls.ipynb cells 45-46.
+
+    Parameters
+    ----------
+    bootstrap_ratios : ndarray, shape (n_features, n_sig_lvs)
+        Bootstrap ratio matrix — rows are features, columns are LVs.
+    feature_names : list of str
+        Row labels (feature names).
+    lv_names : list of str
+        Column labels (e.g. ["LV1", "LV2"]).
+    out_path : Path
+    v : float
+        Symmetric colour range [-v, v]. Default 3.5 (≈ 3.5 SE threshold).
+    colours : list, optional
+        Row colour bar from metadata categories.
+    dpi : int
+    """
+    plot_heatmap(
+        bootstrap_ratios, v=v,
+        xticklabels=lv_names,
+        yticklabels=feature_names,
+        out_path=out_path,
+        row_colors=colours,
+        dpi=dpi,
+    )
+
+
+def plot_raw_distributions(
+    data: np.ndarray,
+    feature_names: list[str],
+    group_labels,
+    group_col: str,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot z-scored feature distributions by group (box + strip).
+
+    Reference: correlational_pls.ipynb cells 15-20 (boxstripplot on
+    standardised X and Y before PLS).
+
+    Parameters
+    ----------
+    data : ndarray, shape (n_subjects, n_features)
+        Z-scored feature matrix.
+    feature_names : list of str
+        Column labels for *data*.
+    group_labels : array-like, length n_subjects
+        Per-subject group label for the x-axis.
+    group_col : str
+        Name to use for the group column (axis label).
+    out_path : Path
+    dpi : int
+    """
+    df = pd.DataFrame(data, columns=feature_names)
+    df[group_col] = list(group_labels)
+
+    long_df = df.melt(
+        id_vars=[group_col],
+        value_vars=feature_names,
+        var_name="feature",
+        value_name="z-score",
+    )
+
+    order = sorted(long_df[group_col].unique())
+    n_features = len(feature_names)
+    col_wrap = min(4, n_features)
+
+    g = sns.catplot(
+        data=long_df,
+        x=group_col, y="z-score",
+        hue=group_col,
+        col="feature", col_wrap=col_wrap,
+        order=order,
+        kind="box",
+        palette="Set2",
+        boxprops={"edgecolor": "gray", "alpha": 0.5},
+        medianprops={"color": "k", "ls": "--", "lw": 1},
+        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
+        showfliers=False,
+        legend_out=True,
+        sharex=False,
+    )
+    g.map(
+        sns.stripplot, group_col, "z-score", group_col,
+        order=order,
+        size=5, dodge=True, palette="Set2",
+        jitter=True, linewidth=1, edgecolor=".5",
+    )
+    plt.tight_layout()
+    g.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close()
+
+
+def plot_scree(
+    s: np.ndarray,
+    p_values: np.ndarray,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot singular value scree chart coloured by significance.
+
+    Bars are coloured steelblue for significant LVs (p < 0.05) and
+    lightgray for non-significant ones.
+
+    Parameters
+    ----------
+    s : ndarray, shape (n_components,)
+        Singular values.
+    p_values : ndarray, shape (n_components,)
+        Permutation p-values for each LV.
+    out_path : Path
+    dpi : int
+    """
+    from matplotlib.patches import Patch
+
+    n = len(s)
+    colours = ["steelblue" if p < 0.05 else "lightgray" for p in p_values]
+    lv_labels = [f"LV{i + 1}" for i in range(n)]
+
+    fig, ax = plt.subplots(figsize=(max(4.0, n * 0.6 + 1.0), 4))
+    ax.bar(lv_labels, s, color=colours, edgecolor="gray")
+    ax.set_xlabel("Latent variable")
+    ax.set_ylabel("Singular value")
+    ax.set_title("Singular value scree plot")
+
+    legend_elements = [
+        Patch(facecolor="steelblue", label="p < 0.05"),
+        Patch(facecolor="lightgray", label="p \u2265 0.05"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right")
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)
+
+
+def plot_cv_convergence(
+    repeat_accuracies: np.ndarray,
+    final_mean: float,
+    chance_level: float,
+    out_path: Path,
+    dpi: int = 300,
+) -> None:
+    """Plot cumulative mean CV accuracy over repeats (convergence check).
+
+    Reference: claude_cross_validation.py section 7e.
+
+    Parameters
+    ----------
+    repeat_accuracies : ndarray, shape (n_repeats,)
+        Per-repeat mean accuracy (one value per repeat).
+    final_mean : float
+        Overall mean accuracy across all repeats.
+    chance_level : float
+        Chance accuracy (1 / n_groups).
+    out_path : Path
+    dpi : int
+    """
+    n = len(repeat_accuracies)
+    cumulative_mean = np.cumsum(repeat_accuracies) / np.arange(1, n + 1)
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(np.arange(1, n + 1), cumulative_mean, color="steelblue")
+    ax.axhline(
+        final_mean, color="red", linestyle="--", alpha=0.5,
+        label=f"Final mean = {final_mean:.3f}",
+    )
+    ax.axhline(
+        chance_level, color="gray", linestyle=":",
+        label=f"Chance = {chance_level:.3f}",
+    )
+    ax.set_xlabel("Number of repeats completed")
+    ax.set_ylabel("Cumulative mean accuracy")
+    ax.set_title("Convergence of CV accuracy estimate with increasing repeats")
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(fig)
+
+
 def plot_confusion_matrix(
     cm: np.ndarray,
     label_names: list[str],
