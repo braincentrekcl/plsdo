@@ -59,5 +59,5 @@ Practical consequences: prefer stdlib over third-party where reasonable (argpars
 - British English in all prose: docs, commit messages, user-facing strings, comments.
 - Commit messages use conventional prefixes: `feat`, `fix`, `enh`, `ref`, `test`, `docs`, `chore`. User commits with a GPG key — stage files and provide message text only, with attribution for claude, do not run `git commit`.
 - `plsdo/` contains no data. Test data lives in `tests/data/` (synthetic, small).
-- Reference notebooks (`correlational_pls.ipynb`, `discriminatory_pls.ipynb`, `claude_cross_validation.py`) are the source of truth for computational steps and plot styling. Deviations require discussion.
-- `docs/superpowers/specs/` and `docs/superpowers/plans/` contain the design spec and implementation plan. Consult them before making structural changes.
+- Reference notebooks (`.dev/correlational_pls.ipynb`, `.dev/discriminatory_pls.ipynb`, `.dev/claude_cross_validation.py`) are the source of truth for computational steps and plot styling. Deviations require discussion. These files are gitignored and live only in your local working copy.
+- `.dev/superpowers/specs/` and `.dev/superpowers/plans/` contain the design spec and implementation plan. Consult them before making structural changes. These files are gitignored.
