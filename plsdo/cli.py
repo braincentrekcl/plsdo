@@ -123,7 +123,15 @@ def pls_main(argv=None):
     cv_parser.add_argument("--y", dest="y_path", required=True, help="Y matrix CSV")
     cv_parser.add_argument("--demographics", required=True, help="Demographics CSV")
     cv_parser.add_argument("--output", required=True, help="Output directory")
-    cv_parser.add_argument("--group-col", required=True, help="Group column name")
+    cv_parser.add_argument(
+        "--group-col", default=None, help="Group column name (shorthand for YAML)"
+    )
+    cv_parser.add_argument(
+        "--groups",
+        dest="groups_path",
+        default=None,
+        help="Groups YAML config file (CV target is the x_axis column)",
+    )
     cv_parser.add_argument("--subject-id", default=None, help="Subject ID column name")
     cv_parser.add_argument(
         "--n-folds", default=5, type=int, help="Number of CV folds (default: 5)"
@@ -230,11 +238,17 @@ def _dispatch_cross_validate(args):
     """Validate cross-validate arguments and dispatch to pipeline."""
     from plsdo.pipeline import cross_validate_pipeline
 
+    if args.group_col is None and args.groups_path is None:
+        _error("Cross-validate requires --group-col or --groups.")
+    if args.group_col is not None and args.groups_path is not None:
+        _error("--group-col and --groups are mutually exclusive.")
+
     cross_validate_pipeline(
         y_path=Path(args.y_path),
         demographics_path=Path(args.demographics),
         output_dir=Path(args.output),
         group_col=args.group_col,
+        groups_path=Path(args.groups_path) if args.groups_path else None,
         subject_id=args.subject_id,
         n_folds=args.n_folds,
         n_repeats=args.n_repeats,

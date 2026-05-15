@@ -278,6 +278,51 @@ class TestCrossValidate:
         assert (out / "data").exists()
         assert (out / "log.txt").exists()
 
+    def test_accepts_groups_yaml(self, data_dir, tmp_path):
+        out = tmp_path / "cv_yaml"
+        pls_main(
+            [
+                "cross-validate",
+                "--y",
+                str(data_dir / "behaviour.csv"),
+                "--demographics",
+                str(data_dir / "demographics.csv"),
+                "--groups",
+                str(data_dir / "groups.yaml"),
+                "--output",
+                str(out),
+                "--n-folds",
+                "3",
+                "--n-repeats",
+                "2",
+                "--n-permutations",
+                "10",
+            ]
+        )
+        assert (out / "log.txt").exists()
+        log = (out / "log.txt").read_text()
+        assert "group_col: group" in log
+        assert "groups:" in log
+
+    def test_group_col_and_groups_mutually_exclusive(self, data_dir, tmp_path):
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main(
+                [
+                    "cross-validate",
+                    "--y",
+                    str(data_dir / "behaviour.csv"),
+                    "--demographics",
+                    str(data_dir / "demographics.csv"),
+                    "--group-col",
+                    "group",
+                    "--groups",
+                    str(data_dir / "groups.yaml"),
+                    "--output",
+                    str(tmp_path / "cv_both"),
+                ]
+            )
+        assert exc_info.value.code != 0
+
     def test_all_plots_creates_convergence_figure(self, data_dir, tmp_path):
         out = tmp_path / "cv_allplots"
         pls_main(

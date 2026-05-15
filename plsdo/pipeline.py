@@ -387,7 +387,8 @@ def cross_validate_pipeline(
     y_path: Path,
     demographics_path: Path,
     output_dir: Path,
-    group_col: str,
+    group_col: str | None = None,
+    groups_path: Path | None = None,
     subject_id: str | None = None,
     n_folds: int = 5,
     n_repeats: int = 100,
@@ -408,8 +409,11 @@ def cross_validate_pipeline(
         Path to demographics CSV.
     output_dir : Path
         Output directory for results.
-    group_col : str
-        Group column name.
+    group_col : str, optional
+        Single grouping column name (CV classification target).
+    groups_path : Path, optional
+        Path to YAML groups config. The column with role ``x_axis``
+        (or the first non-ignore column) is used as the CV target.
     subject_id : str, optional
         Subject ID column name.
     n_folds : int
@@ -443,9 +447,33 @@ def cross_validate_pipeline(
     figures_dir.mkdir(parents=True, exist_ok=True)
     data_dir_out.mkdir(parents=True, exist_ok=True)
 
+    # --- Load demographics and resolve group target ---
+    demographics_df = load_csv(demographics_path)
+
+    if groups_path is not None:
+        config = parse_groups_config(groups_path, demographics_df=demographics_df)
+        if config.subject_id:
+            subject_id = config.subject_id
+        non_ignore = [g for g in config.groups if g.role != "ignore"]
+        if not non_ignore:
+            raise ValueError(
+                f"Groups config {groups_path} has no non-ignore columns; "
+                f"cannot derive a CV classification target."
+            )
+        target = next(
+            (g for g in non_ignore if g.role == "x_axis"),
+            non_ignore[0],
+        )
+        group_col = target.column
+        logger.info(
+            "Using '%s' (role=%s) as CV classification target from %s",
+            group_col,
+            target.role,
+            groups_path,
+        )
+
     # --- Load and validate ---
     y_df = load_csv(y_path, require_numeric=True)
-    demographics_df = load_csv(demographics_path)
 
     sid = detect_subject_id([y_df, demographics_df], subject_id=subject_id)
     y_aligned, demo_aligned = align_subjects([y_df, demographics_df], subject_id=sid)
@@ -548,6 +576,7 @@ def cross_validate_pipeline(
             "y": str(y_path),
             "demographics": str(demographics_path),
             "group_col": group_col,
+            "groups": str(groups_path) if groups_path else None,
             "subject_id": sid,
             "n_folds": n_folds,
             "n_repeats": n_repeats,

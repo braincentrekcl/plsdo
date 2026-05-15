@@ -82,6 +82,9 @@ groups:
 ```
 
 Then use `--groups groups.yaml` instead of `--group-col`.
+This works for both `plsdo run` and `plsdo cross-validate`; for
+cross-validation the column with `role: x_axis` is used as the
+classification target.
 
 ## Feature Metadata (Colour-Coding Loading Plots)
 
