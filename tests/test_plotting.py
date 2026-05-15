@@ -148,7 +148,6 @@ class TestPlotScoresBoxstrip:
         )
         assert out.exists()
 
-
     def test_box_and_strip_receive_same_palette_dict(self, tmp_output, monkeypatch):
         """Both seaborn layers must receive an identical {level: colour} dict.
 
@@ -176,9 +175,7 @@ class TestPlotScoresBoxstrip:
             return real_map(self, func, *args, **kwargs)
 
         monkeypatch.setattr(plotting_mod.sns, "catplot", spy_catplot)
-        monkeypatch.setattr(
-            plotting_mod.sns.axisgrid.FacetGrid, "map", spy_map
-        )
+        monkeypatch.setattr(plotting_mod.sns.axisgrid.FacetGrid, "map", spy_map)
 
         rng = np.random.default_rng(0)
         n = 30

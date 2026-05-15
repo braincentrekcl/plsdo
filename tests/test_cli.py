@@ -164,9 +164,7 @@ class TestRunValidation:
 
 
 class TestLogContents:
-    def test_log_records_metadata_paths_and_bsr_threshold(
-        self, data_dir, tmp_path
-    ):
+    def test_log_records_metadata_paths_and_bsr_threshold(self, data_dir, tmp_path):
         out = tmp_path / "out_log"
         pls_main(
             [

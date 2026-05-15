@@ -245,9 +245,7 @@ def plot_scores_boxstrip(
         if hasattr(scores_df[hue], "cat")
         else sorted(scores_df[hue].unique())
     )
-    palette = dict(
-        zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order)))
-    )
+    palette = dict(zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order))))
 
     kwargs = {}
     if col_wrap is not None:

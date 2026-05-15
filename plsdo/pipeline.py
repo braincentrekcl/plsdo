@@ -301,9 +301,7 @@ def run_pipeline(
                 feature_names=[n for n, m in zip(names, mask) if m],
                 lv_name=lv_name,
                 out_path=figures_dir / f"{lv_name}_{side}_loadings.{ext}",
-                colours=(
-                    [c for c, m in zip(colours, mask) if m] if colours else None
-                ),
+                colours=([c for c, m in zip(colours, mask) if m] if colours else None),
                 dpi=dpi,
             )
 
