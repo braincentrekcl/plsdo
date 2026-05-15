@@ -240,6 +240,14 @@ def plot_scores_boxstrip(
         if hasattr(scores_df[x_col], "cat")
         else sorted(scores_df[x_col].unique())
     )
+    hue_order = (
+        scores_df[hue].cat.categories.tolist()
+        if hasattr(scores_df[hue], "cat")
+        else sorted(scores_df[hue].unique())
+    )
+    palette = dict(
+        zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order)))
+    )
 
     kwargs = {}
     if col_wrap is not None:
@@ -254,22 +262,18 @@ def plot_scores_boxstrip(
         x=x_col,
         y=y_col,
         hue=hue,
+        hue_order=hue_order,
         col=col_col,
         order=order,
         kind="box",
         sharex=False,
-        palette="Set2",
+        palette=palette,
         boxprops={"edgecolor": "gray", "alpha": 0.5},
         medianprops={"color": "k", "ls": "--", "lw": 1},
         whiskerprops={"color": "gray", "ls": "-", "lw": 1},
         showfliers=False,
         legend_out=True,
         **kwargs,
-    )
-    hue_order = (
-        scores_df[hue].cat.categories.tolist()
-        if hasattr(scores_df[hue], "cat")
-        else sorted(scores_df[hue].unique())
     )
     g.map(
         sns.stripplot,
@@ -280,7 +284,7 @@ def plot_scores_boxstrip(
         hue_order=hue_order,
         size=5,
         dodge=True,
-        palette="Set2",
+        palette=palette,
         jitter=True,
         linewidth=1,
         edgecolor=".5",

@@ -149,6 +149,63 @@ class TestPlotScoresBoxstrip:
         assert out.exists()
 
 
+    def test_box_and_strip_receive_same_palette_dict(self, tmp_output, monkeypatch):
+        """Both seaborn layers must receive an identical {level: colour} dict.
+
+        Guards against the regression where palette="Set2" was passed to both
+        layers without hue_order — seaborn then derives the level→colour
+        mapping per call from the order the data presents, which can disagree
+        between the box and strip layers.
+        """
+        import seaborn as sns
+        from plsdo import plotting as plotting_mod
+
+        captured = {}
+        real_catplot = sns.catplot
+        real_map = sns.axisgrid.FacetGrid.map
+
+        def spy_catplot(*args, **kwargs):
+            captured["catplot_palette"] = kwargs.get("palette")
+            captured["catplot_hue_order"] = kwargs.get("hue_order")
+            return real_catplot(*args, **kwargs)
+
+        def spy_map(self, func, *args, **kwargs):
+            if func is sns.stripplot:
+                captured["strip_palette"] = kwargs.get("palette")
+                captured["strip_hue_order"] = kwargs.get("hue_order")
+            return real_map(self, func, *args, **kwargs)
+
+        monkeypatch.setattr(plotting_mod.sns, "catplot", spy_catplot)
+        monkeypatch.setattr(
+            plotting_mod.sns.axisgrid.FacetGrid, "map", spy_map
+        )
+
+        rng = np.random.default_rng(0)
+        n = 30
+        scores_df = pd.DataFrame(
+            {
+                "score": rng.standard_normal(n),
+                "LV": ["LV1"] * n,
+                "group": (["C"] * 10 + ["B"] * 10 + ["A"] * 10),
+            }
+        )
+        scores_df["group"] = pd.Categorical(
+            scores_df["group"], categories=["A", "B", "C"], ordered=True
+        )
+        out = tmp_output / "scores_box_consistent.svg"
+        plot_scores_boxstrip(
+            scores_df=scores_df,
+            x_col="group",
+            y_col="score",
+            col_col="LV",
+            out_path=out,
+        )
+        assert isinstance(captured["catplot_palette"], dict)
+        assert captured["catplot_palette"] == captured["strip_palette"]
+        assert captured["catplot_hue_order"] == captured["strip_hue_order"]
+        assert captured["catplot_hue_order"] == ["A", "B", "C"]
+
+
 class TestPlotScoresScatter:
     def test_saves_file(self, tmp_output):
         import pandas as pd
