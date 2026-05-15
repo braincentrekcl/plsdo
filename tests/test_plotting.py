@@ -4,8 +4,10 @@ matplotlib.use("Agg")  # non-interactive backend for tests
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from plsdo.plotting import (
     figure_size,
+    meta_colours,
     plot_heatmap,
     plot_permutation,
     plot_loadings,
@@ -325,6 +327,34 @@ class TestPlotScree:
         out = tmp_output / "scree_ns.svg"
         plot_scree(s=s, p_values=p_values, out_path=out)
         assert out.exists()
+
+
+class TestMetaColours:
+    def test_none_returns_none_silently(self, caplog):
+        with caplog.at_level("WARNING", logger="plsdo"):
+            result = meta_colours(None, ["a", "b"])
+        assert result is None
+        assert caplog.records == []
+
+    def test_missing_category_column_warns(self, caplog):
+        meta_df = pd.DataFrame({"feature": ["a", "b"]})
+        with caplog.at_level("WARNING", logger="plsdo"):
+            result = meta_colours(meta_df, ["a", "b"])
+        assert result is None
+        assert any(
+            "no 'category' column" in r.message and r.levelname == "WARNING"
+            for r in caplog.records
+        )
+
+    def test_with_category_returns_colours(self):
+        meta_df = pd.DataFrame(
+            {"feature": ["a", "b", "c"], "category": ["x", "x", "y"]}
+        )
+        result = meta_colours(meta_df, ["a", "b", "c"])
+        assert result is not None
+        assert len(result) == 3
+        assert result[0] == result[1]
+        assert result[0] != result[2]
 
 
 class TestPlotCvConvergence:

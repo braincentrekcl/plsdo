@@ -1,11 +1,15 @@
 """Stateless plot functions for PLS results."""
 
+import logging
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger("plsdo")
 
 # Threshold above which heatmap annotations are suppressed
 ANNOTATION_THRESHOLD = 30
@@ -417,7 +421,14 @@ def meta_colours(
     -------
     list of colours, or None if meta_df is None or has no 'category' column.
     """
-    if meta_df is None or "category" not in meta_df.columns:
+    if meta_df is None:
+        return None
+    if "category" not in meta_df.columns:
+        logger.warning(
+            "Metadata DataFrame has no 'category' column (columns: %s); "
+            "loading plots will not be colour-coded.",
+            list(meta_df.columns),
+        )
         return None
     colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
     palette = dict(
