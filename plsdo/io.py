@@ -140,16 +140,11 @@ def align_subjects(dfs: list[pd.DataFrame], subject_id: str) -> list[pd.DataFram
 
     # Reorder all dataframes to the same sorted subject order
     ordered_ids = sorted(shared_ids)
-    aligned = []
-    for df in dfs:
-        reordered = (
-            df[df[subject_id].isin(shared_ids)]
-            .set_index(subject_id)
-            .loc[ordered_ids]
-            .reset_index()
-        )
-        aligned.append(reordered)
-
+    ordered_df = pd.DataFrame({subject_id: ordered_ids})
+    aligned = [
+        ordered_df.merge(df, on=subject_id, how="left").reset_index(drop=True)
+        for df in dfs
+    ]
     return aligned
 
 

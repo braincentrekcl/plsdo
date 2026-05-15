@@ -105,6 +105,28 @@ class TestAlignSubjects:
         with pytest.raises(ValueError, match="No subjects shared"):
             align_subjects([df1, df2], subject_id="id")
 
+    def test_no_performance_warning_on_wide_frame(self):
+        # Regression: reset_index on a wide frame used to trigger
+        # pandas PerformanceWarning about fragmentation.
+        import warnings
+
+        rng = np.random.default_rng(0)
+        n_subjects = 10
+        n_features = 1000
+        ids = [f"s{i:03d}" for i in range(n_subjects)]
+        wide = pd.DataFrame(
+            rng.standard_normal((n_subjects, n_features)),
+            columns=[f"f{j}" for j in range(n_features)],
+        )
+        wide.insert(0, "id", ids)
+        other = pd.DataFrame({"id": ids, "v": rng.standard_normal(n_subjects)})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", pd.errors.PerformanceWarning)
+            aligned = align_subjects([wide, other], subject_id="id")
+        assert list(aligned[0]["id"]) == sorted(ids)
+        assert aligned[0].shape == (n_subjects, n_features + 1)
+
 
 class TestCheckMissingValues:
     def test_no_missing_passes(self):
