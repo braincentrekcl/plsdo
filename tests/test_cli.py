@@ -163,6 +163,71 @@ class TestRunValidation:
         assert (figs / "Y_raw_distributions.svg").exists()
 
 
+class TestLogContents:
+    def test_log_records_metadata_paths_and_bsr_threshold(
+        self, data_dir, tmp_path
+    ):
+        out = tmp_path / "out_log"
+        pls_main(
+            [
+                "run",
+                "--method",
+                "c",
+                "--x",
+                str(data_dir / "brain.csv"),
+                "--y",
+                str(data_dir / "behaviour.csv"),
+                "--demographics",
+                str(data_dir / "demographics.csv"),
+                "--y-meta",
+                str(data_dir / "behaviour_meta.csv"),
+                "--output",
+                str(out),
+                "--n-perms",
+                "10",
+                "--n-bootstraps",
+                "10",
+                "--subject-id",
+                "subject_id",
+                "--bsr-threshold",
+                "1.5",
+            ]
+        )
+        log = (out / "log.txt").read_text()
+        assert "y_meta:" in log
+        assert str(data_dir / "behaviour_meta.csv") in log
+        assert "x_meta: None" in log
+        assert "bsr_threshold: 1.5" in log
+
+    def test_log_records_none_when_no_metadata(self, data_dir, tmp_path):
+        out = tmp_path / "out_log_none"
+        pls_main(
+            [
+                "run",
+                "--method",
+                "c",
+                "--x",
+                str(data_dir / "brain.csv"),
+                "--y",
+                str(data_dir / "behaviour.csv"),
+                "--demographics",
+                str(data_dir / "demographics.csv"),
+                "--output",
+                str(out),
+                "--n-perms",
+                "10",
+                "--n-bootstraps",
+                "10",
+                "--subject-id",
+                "subject_id",
+            ]
+        )
+        log = (out / "log.txt").read_text()
+        assert "x_meta: None" in log
+        assert "y_meta: None" in log
+        assert "bsr_threshold: 1.96" in log
+
+
 def test_version_flag(capsys):
     with pytest.raises(SystemExit) as exc_info:
         pls_main(["--version"])
