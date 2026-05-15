@@ -104,6 +104,15 @@ def pls_main(argv=None):
     run_parser.add_argument(
         "--dpi", default=300, type=int, help="Image DPI (default: 300)"
     )
+    run_parser.add_argument(
+        "--bsr-threshold",
+        default=1.96,
+        type=float,
+        help=(
+            "Plot loading bars only for features with |bootstrap ratio| > "
+            "THRESHOLD (default: 1.96). Does not affect CSV outputs."
+        ),
+    )
 
     # --- plsdo cross-validate ---
     cv_parser = subparsers.add_parser(
@@ -213,6 +222,7 @@ def _dispatch_run(args):
         img_format=args.img_format,
         dpi=args.dpi,
         all_plots=args.all_plots,
+        bsr_threshold=args.bsr_threshold,
     )
 
 

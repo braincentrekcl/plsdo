@@ -73,6 +73,7 @@ def run_pipeline(
     img_format: str = "svg",
     dpi: int = 300,
     all_plots: bool = False,
+    bsr_threshold: float = 1.96,
 ) -> None:
     """Run a full PLS analysis pipeline.
 
@@ -108,6 +109,10 @@ def run_pipeline(
         Output image resolution.
     all_plots : bool
         If True, generate additional diagnostic plots.
+    bsr_threshold : float
+        Plot loading bars only for features with |bootstrap ratio|
+        exceeding this threshold. Default 1.96 (≈ 95% CI under the
+        standard-normal approximation). CSV outputs are unaffected.
     """
     # --- Set up output directory ---
     figures_dir = output_dir / "figures"
@@ -262,25 +267,45 @@ def run_pipeline(
     for i, lv_name in enumerate(final_lv_names):
         lv_idx = final_lv_indices[i]
 
-        plot_loadings(
-            loadings=model.u_loadings[:, lv_idx],
-            se=model.u_se[:, lv_idx],
-            feature_names=x_feature_names,
-            lv_name=lv_name,
-            out_path=figures_dir / f"{lv_name}_x_loadings.{ext}",
-            colours=x_colours,
-            dpi=dpi,
-        )
-
-        plot_loadings(
-            loadings=model.vt_loadings[lv_idx, :],
-            se=model.vt_se[lv_idx, :],
-            feature_names=y_feature_names,
-            lv_name=lv_name,
-            out_path=figures_dir / f"{lv_name}_y_loadings.{ext}",
-            colours=y_colours,
-            dpi=dpi,
-        )
+        for side, loadings, se, bsr, names, colours in [
+            (
+                "x",
+                model.u_loadings[:, lv_idx],
+                model.u_se[:, lv_idx],
+                model.u_bootstrap_ratios[:, lv_idx],
+                x_feature_names,
+                x_colours,
+            ),
+            (
+                "y",
+                model.vt_loadings[lv_idx, :],
+                model.vt_se[lv_idx, :],
+                model.vt_bootstrap_ratios[lv_idx, :],
+                y_feature_names,
+                y_colours,
+            ),
+        ]:
+            mask = np.abs(bsr) > bsr_threshold
+            if not mask.any():
+                logger.info(
+                    "%s loadings for %s: no features exceed |bsr| > %.2f; "
+                    "skipping plot.",
+                    side.upper(),
+                    lv_name,
+                    bsr_threshold,
+                )
+                continue
+            plot_loadings(
+                loadings=loadings[mask],
+                se=se[mask],
+                feature_names=[n for n, m in zip(names, mask) if m],
+                lv_name=lv_name,
+                out_path=figures_dir / f"{lv_name}_{side}_loadings.{ext}",
+                colours=(
+                    [c for c, m in zip(colours, mask) if m] if colours else None
+                ),
+                dpi=dpi,
+            )
 
     # 4. Subject score box/strip plots
     if config is not None and len(config.groups) > 0 and len(final_lv_names) > 0:
