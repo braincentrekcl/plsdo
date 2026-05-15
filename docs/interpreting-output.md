@@ -33,6 +33,11 @@ each loading is across resampled versions of the data.
 reliably. **Large bars with large error bars** may be driven by a few
 outlier subjects.
 
+By default, loading plots show only features with `|bootstrap ratio| > 1.96`
+(≈ 95% CI under the standard-normal approximation to the bootstrap
+distribution).
+Adjust with `--bsr-threshold`; the underlying CSV outputs are unfiltered.
+
 ## Bootstrap Ratios
 
 The bootstrap ratio is the loading divided by its standard error. It can be

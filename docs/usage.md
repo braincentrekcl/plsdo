@@ -83,6 +83,31 @@ groups:
 
 Then use `--groups groups.yaml` instead of `--group-col`.
 
+## Feature Metadata (Colour-Coding Loading Plots)
+
+To colour-code features by category in the loading bar plots, pass a
+metadata CSV via `--x-meta` and/or `--y-meta`.
+The file must have at least two columns: `feature` and `category`.
+
+| feature                  | category |
+|--------------------------|----------|
+| L Amygdala early CBF     | CBF      |
+| L Amygdala hurst         | Hurst    |
+| ...                      | ...      |
+
+Whitespace after the comma in headers is tolerated.
+Feature names in the metadata file must match the data exactly.
+Features present in the data but missing from the metadata are uncoloured.
+
+## Filtering Loading Plots by Bootstrap Ratio
+
+By default, loading bar plots show only features whose `|bootstrap ratio|`
+exceeds `1.96` (≈ 95% CI under the standard-normal approximation).
+Override with `--bsr-threshold <float>` — e.g. `--bsr-threshold 2.58`
+for a stricter cut, or `--bsr-threshold 0` to plot every feature.
+The underlying `x_loadings.csv`, `y_loadings.csv`, `x_bootstrap_ratios.csv`,
+and `y_bootstrap_ratios.csv` are not filtered.
+
 ## All Options
 
 Run `plsdo run --help` or `plsdo cross-validate --help` for the full list.
