@@ -40,7 +40,7 @@ def load_csv(path: Path, require_numeric: bool = False) -> pd.DataFrame:
         raise FileNotFoundError(f"File does not exist: {path}")
 
     try:
-        df = pd.read_csv(path)
+        df = pd.read_csv(path, skipinitialspace=True)
     except Exception as e:
         raise ValueError(f"File could not be read as CSV: {path} ({e})")
 

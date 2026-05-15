@@ -33,6 +33,12 @@ class TestLoadCsv:
         with pytest.raises(ValueError, match="empty"):
             load_csv(empty)
 
+    def test_strips_leading_whitespace_in_headers(self, tmp_path):
+        path = tmp_path / "spaced.csv"
+        path.write_text("feature, category\nfoo,CBF\nbar,Hurst\n")
+        df = load_csv(path, require_numeric=False)
+        assert list(df.columns) == ["feature", "category"]
+
     def test_no_numeric_columns_raises(self, tmp_path):
         text_only = tmp_path / "text.csv"
         text_only.write_text("name,colour\nalice,red\nbob,blue\n")
