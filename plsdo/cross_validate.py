@@ -133,7 +133,7 @@ def permutation_test_cv(
     -------
     dict with keys: p_value, null_accuracies
     """
-    rng = np.random.RandomState(seed)
+    rng = np.random.default_rng(seed)
     null_accs = []
 
     for perm_i in range(n_permutations):
