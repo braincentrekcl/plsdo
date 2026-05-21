@@ -93,6 +93,7 @@ results/
 | [Usage guide](docs/usage.md) | Full CLI options, multiple grouping variables, all flags |
 | [Input format](docs/input-format.md) | How to structure X, Y, demographics, and metadata files |
 | [Interpreting output](docs/interpreting-output.md) | What each plot and CSV means |
+| [Statistical methods](docs/methods.md) | Design matrix encoding, p-value correction, LV filtering, bootstrap alignment |
 | [Missing data](docs/missing-data.md) | Why plsdo does not impute, and what to do instead |
 
 ---
