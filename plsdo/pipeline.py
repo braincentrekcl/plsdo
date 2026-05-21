@@ -22,6 +22,7 @@ from plsdo.io import (
     zscore_columns,
 )
 from plsdo.plotting import (
+    VERBOSE_FEATURE_LIMIT,
     meta_colours,
     plot_bootstrap_heatmap,
     plot_heatmap,
@@ -74,6 +75,7 @@ def run_pipeline(
     dpi: int = 300,
     all_plots: bool = False,
     bsr_threshold: float = 1.96,
+    verbose_feature_limit: int | None = None,
 ) -> None:
     """Run a full PLS analysis pipeline.
 
@@ -113,6 +115,9 @@ def run_pipeline(
         Plot loading bars only for features with |bootstrap ratio|
         exceeding this threshold. Default 1.96 (≈ 95% CI under the
         standard-normal approximation). CSV outputs are unaffected.
+    verbose_feature_limit : int, optional
+        Maximum number of features before verbose plots (except scree)
+        are skipped. Defaults to ``VERBOSE_FEATURE_LIMIT`` (100).
     """
     # --- Set up output directory ---
     figures_dir = output_dir / "figures"
@@ -350,6 +355,7 @@ def run_pipeline(
             figures_dir=figures_dir,
             ext=ext,
             dpi=dpi,
+            verbose_feature_limit=verbose_feature_limit,
         )
 
     # --- Write log ---
@@ -614,9 +620,37 @@ def _plot_verbose(
     figures_dir: Path,
     ext: str,
     dpi: int,
+    verbose_feature_limit: int | None = None,
 ) -> None:
     """Generate additional diagnostic plots when --all-plots is requested."""
     n_components = len(model.s)
+
+    # --- Guard: skip feature-heavy plots when feature count is too high ---
+    limit = (
+        verbose_feature_limit
+        if verbose_feature_limit is not None
+        else VERBOSE_FEATURE_LIMIT
+    )
+    n_x = len(x_feature_names)
+    n_y = len(y_feature_names)
+    if max(n_x, n_y) > limit:
+        logger.warning(
+            "Skipping verbose plots (except scree): %d features exceeds "
+            "the %d-feature limit. These plots are unreadable at this "
+            "scale. Use the standard plots or extract data from the CSV "
+            "outputs for custom visualisation. To override, pass "
+            "--verbose-feature-limit N.",
+            max(n_x, n_y),
+            limit,
+        )
+        # Scree is fine at any scale — only depends on number of LVs
+        plot_scree(
+            s=model.s,
+            p_values=model.p_values,
+            out_path=figures_dir / f"scree.{ext}",
+            dpi=dpi,
+        )
+        return
 
     # Scree plot — all LVs
     plot_scree(
