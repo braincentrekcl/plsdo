@@ -161,21 +161,20 @@ class TestPlotScoresBoxstrip:
 
         captured = {}
         real_catplot = sns.catplot
-        real_map = sns.axisgrid.FacetGrid.map
+        real_stripplot = sns.stripplot
 
         def spy_catplot(*args, **kwargs):
             captured["catplot_palette"] = kwargs.get("palette")
             captured["catplot_hue_order"] = kwargs.get("hue_order")
             return real_catplot(*args, **kwargs)
 
-        def spy_map(self, func, *args, **kwargs):
-            if func is sns.stripplot:
-                captured["strip_palette"] = kwargs.get("palette")
-                captured["strip_hue_order"] = kwargs.get("hue_order")
-            return real_map(self, func, *args, **kwargs)
+        def spy_stripplot(*args, **kwargs):
+            captured["strip_palette"] = kwargs.get("palette")
+            captured["strip_hue_order"] = kwargs.get("hue_order")
+            return real_stripplot(*args, **kwargs)
 
         monkeypatch.setattr(plotting_mod.sns, "catplot", spy_catplot)
-        monkeypatch.setattr(plotting_mod.sns.axisgrid.FacetGrid, "map", spy_map)
+        monkeypatch.setattr(plotting_mod.sns, "stripplot", spy_stripplot)
 
         rng = np.random.default_rng(0)
         n = 30

@@ -257,6 +257,7 @@ def plot_scores_boxstrip(
         else sorted(scores_df[hue].unique())
     )
     palette = dict(zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order))))
+    needs_dodge = hue != x_col
 
     kwargs = {}
     if col_wrap is not None:
@@ -277,6 +278,8 @@ def plot_scores_boxstrip(
         kind="box",
         sharex=False,
         palette=palette,
+        saturation=1.0,
+        dodge=needs_dodge,
         boxprops={"edgecolor": "gray", "alpha": 0.5},
         medianprops={"color": "k", "ls": "--", "lw": 1},
         whiskerprops={"color": "gray", "ls": "-", "lw": 1},
@@ -284,20 +287,21 @@ def plot_scores_boxstrip(
         legend_out=True,
         **kwargs,
     )
-    g.map(
-        sns.stripplot,
-        x_col,
-        y_col,
-        hue,
-        order=order,
-        hue_order=hue_order,
-        size=5,
-        dodge=True,
-        palette=palette,
-        jitter=True,
-        linewidth=1,
-        edgecolor=".5",
-    )
+    for ax, (_, facet_data) in zip(
+        g.axes.flat, scores_df.groupby(col_col),
+    ):
+        sns.stripplot(
+            data=facet_data,
+            x=x_col, y=y_col, hue=hue,
+            order=order, hue_order=hue_order,
+            palette=palette, dodge=needs_dodge,
+            size=5, jitter=True,
+            linewidth=1, edgecolor=".5",
+            ax=ax, legend=False,
+        )
+        ax.set_xticklabels(
+            ax.get_xticklabels(), rotation=45, ha="right",
+        )
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
     plt.close()
