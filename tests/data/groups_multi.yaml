@@ -1,0 +1,7 @@
+subject_id: [subject_id, run_id]
+groups:
+  - column: group
+    role: x_axis
+    order: [A, B, C]
+  - column: sex
+    role: hue
