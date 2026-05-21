@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 import yaml
 from plsdo.io import (
+    _normalise_sid,
     load_csv,
     detect_subject_id,
     align_subjects,
@@ -55,7 +56,7 @@ class TestLoadCsv:
 class TestDetectSubjectId:
     def test_explicit_subject_id(self, x_df, y_df, demographics_df):
         sid = detect_subject_id([x_df, y_df, demographics_df], subject_id="subject_id")
-        assert sid == "subject_id"
+        assert sid == ["subject_id"]
 
     def test_explicit_subject_id_missing_from_file(self, x_df, y_df):
         with pytest.raises(ValueError, match="not found"):
@@ -63,14 +64,14 @@ class TestDetectSubjectId:
 
     def test_auto_detect(self, x_df, y_df, demographics_df):
         sid = detect_subject_id([x_df, y_df, demographics_df])
-        assert sid == "subject_id"
+        assert sid == ["subject_id"]
 
     def test_auto_detect_uses_positional_order_not_alphabetical(self):
         # "b" comes before "a" alphabetically but "a" is first in df1
         df1 = pd.DataFrame({"a": [1, 2], "b": [3, 4], "val": [5, 6]})
         df2 = pd.DataFrame({"b": [3, 4], "a": [1, 2], "val2": [7, 8]})
         sid = detect_subject_id([df1, df2])
-        assert sid == "a"
+        assert sid == ["a"]
 
     def test_auto_detect_no_shared_column(self):
         df1 = pd.DataFrame({"a": [1], "val": [2]})
