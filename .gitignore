@@ -20,3 +20,4 @@ uv.lock
 
 # Local dev / agentic reference files (not for distribution)
 .dev/
+.claude
