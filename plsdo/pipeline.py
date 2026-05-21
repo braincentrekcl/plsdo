@@ -11,6 +11,7 @@ from plsdo import __version__
 from plsdo.core import PLS
 from plsdo.io import (
     GroupConfig,
+    SubjectID,
     align_subjects,
     build_design_matrix,
     check_missing_values,
@@ -65,7 +66,7 @@ def run_pipeline(
     x_path: Path | None = None,
     group_col: str | None = None,
     groups_path: Path | None = None,
-    subject_id: str | None = None,
+    subject_id: SubjectID | None = None,
     x_meta_path: Path | None = None,
     y_meta_path: Path | None = None,
     n_perms: int = 10000,
@@ -95,8 +96,8 @@ def run_pipeline(
         Single grouping column name.
     groups_path : Path, optional
         Path to YAML groups config.
-    subject_id : str, optional
-        Subject ID column name.
+    subject_id : str or list of str, optional
+        Subject ID column name(s).
     x_meta_path, y_meta_path : Path, optional
         Paths to feature metadata CSVs.
     n_perms : int
@@ -150,12 +151,12 @@ def run_pipeline(
 
     if method == "correlational":
         x_aligned, y_aligned, demo_aligned = aligned
-        x_feature_names = [c for c in x_aligned.columns if c != sid]
+        x_feature_names = [c for c in x_aligned.columns if c not in sid]
     else:
         y_aligned, demo_aligned = aligned
         X_design, x_feature_names = build_design_matrix(demo_aligned, config)
 
-    y_feature_names = [c for c in y_aligned.columns if c != sid]
+    y_feature_names = [c for c in y_aligned.columns if c not in sid]
 
     # --- Missing value checks ---
     check_missing_values(y_aligned, name="Y")
@@ -224,7 +225,10 @@ def run_pipeline(
     )
 
     # Subject scores
-    subject_ids = y_aligned[sid].tolist()
+    if len(sid) == 1:
+        subject_ids = y_aligned[sid[0]].tolist()
+    else:
+        subject_ids = list(y_aligned[sid].itertuples(index=False, name=None))
     final_lv_names = [f"LV{i + 1}" for i, v in enumerate(model.final_lvs) if v]
     scores_data = (
         np.column_stack(
@@ -239,8 +243,17 @@ def run_pipeline(
     scores_cols = [f"X_{name}" for name in final_lv_names] + [
         f"Y_{name}" for name in final_lv_names
     ]
-    scores_df = pd.DataFrame(scores_data, columns=scores_cols, index=subject_ids)
-    scores_df.index.name = sid
+    if len(sid) == 1:
+        scores_df = pd.DataFrame(
+            scores_data, columns=scores_cols, index=subject_ids
+        )
+        scores_df.index.name = sid[0]
+    else:
+        scores_df = pd.DataFrame(
+            scores_data,
+            columns=scores_cols,
+            index=pd.MultiIndex.from_tuples(subject_ids, names=sid),
+        )
     scores_df.to_csv(data_dir / "subject_scores.csv")
 
     # --- Generate plots ---
@@ -370,7 +383,7 @@ def run_pipeline(
             "groups": str(groups_path),
             "x_meta": str(x_meta_path) if x_meta_path else None,
             "y_meta": str(y_meta_path) if y_meta_path else None,
-            "subject_id": sid,
+            "subject_id": sid[0] if len(sid) == 1 else sid,
             "bsr_threshold": bsr_threshold,
             "n_perms": n_perms,
             "n_bootstraps": n_bootstraps,
@@ -395,7 +408,7 @@ def cross_validate_pipeline(
     output_dir: Path,
     group_col: str | None = None,
     groups_path: Path | None = None,
-    subject_id: str | None = None,
+    subject_id: SubjectID | None = None,
     n_folds: int = 5,
     n_repeats: int = 100,
     n_components: int | None = None,
@@ -420,8 +433,8 @@ def cross_validate_pipeline(
     groups_path : Path, optional
         Path to YAML groups config. The column with role ``x_axis``
         (or the first non-ignore column) is used as the CV target.
-    subject_id : str, optional
-        Subject ID column name.
+    subject_id : str or list of str, optional
+        Subject ID column name(s).
     n_folds : int
         Number of CV folds.
     n_repeats : int
@@ -486,7 +499,7 @@ def cross_validate_pipeline(
 
     check_missing_values(y_aligned, name="Y")
 
-    y_feature_names = [c for c in y_aligned.columns if c != sid]
+    y_feature_names = [c for c in y_aligned.columns if c not in sid]
     Y = y_aligned[y_feature_names].to_numpy(dtype=float)
 
     # Build group labels
@@ -583,7 +596,7 @@ def cross_validate_pipeline(
             "demographics": str(demographics_path),
             "group_col": group_col,
             "groups": str(groups_path) if groups_path else None,
-            "subject_id": sid,
+            "subject_id": sid[0] if len(sid) == 1 else sid,
             "n_folds": n_folds,
             "n_repeats": n_repeats,
             "n_components": n_components,
@@ -756,12 +769,16 @@ def _plot_score_boxstrips(
             score_matrix[:, final_lv_indices],
             columns=final_lv_names,
         )
-        wide[sid] = subject_ids
+        if len(sid) == 1:
+            wide[sid[0]] = subject_ids
+        else:
+            for i, col_name in enumerate(sid):
+                wide[col_name] = [t[i] for t in subject_ids]
         for col in group_col_names:
             wide[col] = demo_cols[col].values
 
         score_long_df = wide.melt(
-            id_vars=[sid] + group_col_names,
+            id_vars=sid + group_col_names,
             value_vars=final_lv_names,
             var_name="LV",
             value_name="score",
@@ -817,7 +834,7 @@ def _plot_score_scatters(
             scatter_df=scatter_df,
             x_col="x_score",
             y_col="y_score",
-            hue_col=hue_col or sid,
+            hue_col=hue_col or sid[0],
             lv_name=lv_name,
             out_path=figures_dir / f"{lv_name}_scores_scatter.{ext}",
             dpi=dpi,

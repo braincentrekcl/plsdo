@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,43 @@ from pathlib import Path
 from scipy.stats import zscore
 
 logger = logging.getLogger("plsdo")
+
+# A subject identifier can be a single column name or a list of column names
+# (compound key). Internally, all code normalises to list[str] via
+# _normalise_sid() before processing.
+SubjectID = Union[str, list[str]]
+
+
+def _normalise_sid(subject_id: SubjectID) -> list[str]:
+    """Normalise a subject ID specification to a list of column names.
+
+    Parameters
+    ----------
+    subject_id : str or list of str
+        A single column name or a list of column names forming a compound key.
+
+    Returns
+    -------
+    list of str
+
+    Raises
+    ------
+    TypeError
+        If *subject_id* is not a string, list, or tuple.
+    ValueError
+        If the resulting list is empty.
+    """
+    if isinstance(subject_id, str):
+        return [subject_id]
+    if isinstance(subject_id, (list, tuple)):
+        result = list(subject_id)
+        if not result:
+            raise ValueError("subject_id must contain at least one column name.")
+        return result
+    raise TypeError(
+        f"subject_id must be a string or list of strings, "
+        f"got {type(subject_id).__name__}"
+    )
 
 
 def load_csv(path: Path, require_numeric: bool = False) -> pd.DataFrame:
@@ -58,29 +95,35 @@ def load_csv(path: Path, require_numeric: bool = False) -> pd.DataFrame:
     return df
 
 
-def detect_subject_id(dfs: list[pd.DataFrame], subject_id: Optional[str] = None) -> str:
-    """Identify the subject ID column across dataframes.
+def detect_subject_id(
+    dfs: list[pd.DataFrame], subject_id: SubjectID | None = None
+) -> list[str]:
+    """Identify the subject ID column(s) across dataframes.
 
     Parameters
     ----------
     dfs : list of DataFrames
         All input dataframes to check.
-    subject_id : str, optional
-        Explicit column name. If None, auto-detect from shared columns.
+    subject_id : str, list of str, or None
+        Explicit column name(s). A single string or a list of strings
+        forming a compound key. If None, auto-detect from shared columns
+        (always returns a single-element list).
 
     Returns
     -------
-    str
-        The subject ID column name.
+    list of str
+        The subject ID column name(s), always as a list.
     """
     if subject_id is not None:
+        sid = _normalise_sid(subject_id)
         for i, df in enumerate(dfs):
-            if subject_id not in df.columns:
+            missing = [c for c in sid if c not in df.columns]
+            if missing:
                 raise ValueError(
-                    f"Subject ID column '{subject_id}' not found in "
+                    f"Subject ID column(s) {missing} not found in "
                     f"dataframe {i} (columns: {list(df.columns)})"
                 )
-        return subject_id
+        return sid
 
     # Auto-detect: first column in dfs[0] that appears in all other dataframes
     shared = set(dfs[0].columns)
@@ -94,28 +137,40 @@ def detect_subject_id(dfs: list[pd.DataFrame], subject_id: Optional[str] = None)
         )
 
     # Preserve positional order from the first dataframe
-    sid = next(col for col in dfs[0].columns if col in shared)
-    logger.info("Auto-detected subject ID column: '%s'", sid)
-    return sid
+    col = next(col for col in dfs[0].columns if col in shared)
+    logger.info("Auto-detected subject ID column: '%s'", col)
+    return [col]
 
 
-def align_subjects(dfs: list[pd.DataFrame], subject_id: str) -> list[pd.DataFrame]:
+def align_subjects(
+    dfs: list[pd.DataFrame], subject_id: SubjectID
+) -> list[pd.DataFrame]:
     """Align dataframes to shared subjects in consistent order.
 
     Parameters
     ----------
     dfs : list of DataFrames
-        Input dataframes with a shared subject ID column.
-    subject_id : str
-        Name of the subject ID column.
+        Input dataframes with a shared subject ID column (or columns).
+    subject_id : str or list of str
+        Name(s) of the subject ID column(s). A single string or a list
+        of strings forming a compound key.
 
     Returns
     -------
     list of DataFrames
         Reordered dataframes containing only shared subjects.
     """
+    sid = _normalise_sid(subject_id)
+
     # Find intersection of subject IDs
-    id_sets = [set(df[subject_id]) for df in dfs]
+    if len(sid) == 1:
+        col = sid[0]
+        id_sets = [set(df[col]) for df in dfs]
+    else:
+        id_sets = [
+            set(df[sid].itertuples(index=False, name=None)) for df in dfs
+        ]
+
     shared_ids = id_sets[0]
     for s in id_sets[1:]:
         shared_ids &= s
@@ -139,10 +194,16 @@ def align_subjects(dfs: list[pd.DataFrame], subject_id: str) -> list[pd.DataFram
         )
 
     # Reorder all dataframes to the same sorted subject order
-    ordered_ids = sorted(shared_ids)
-    ordered_df = pd.DataFrame({subject_id: ordered_ids})
+    if len(sid) == 1:
+        col = sid[0]
+        ordered_ids = sorted(shared_ids)
+        ordered_df = pd.DataFrame({col: ordered_ids})
+    else:
+        ordered_tuples = sorted(shared_ids)
+        ordered_df = pd.DataFrame(ordered_tuples, columns=sid)
+
     aligned = [
-        ordered_df.merge(df, on=subject_id, how="left").reset_index(drop=True)
+        ordered_df.merge(df, on=sid, how="left").reset_index(drop=True)
         for df in dfs
     ]
     return aligned
@@ -246,11 +307,13 @@ class GroupSpec:
 class GroupConfig:
     """Parsed groups configuration."""
 
-    subject_id: Optional[str] = None
+    subject_id: SubjectID | None = None
     groups: list[GroupSpec] = field(default_factory=list)
 
     @classmethod
-    def from_group_col(cls, group_col: str, subject_id: Optional[str] = None):
+    def from_group_col(
+        cls, group_col: str, subject_id: SubjectID | None = None
+    ):
         """Create a config from a single --group-col string."""
         return cls(
             subject_id=subject_id,
@@ -316,7 +379,7 @@ def parse_groups_config(
                 )
 
         # Warn about unlisted columns
-        ignore_cols = {subject_id} if subject_id else set()
+        ignore_cols = set(_normalise_sid(subject_id)) if subject_id else set()
         unlisted = demo_cols - listed_cols - ignore_cols
         if unlisted:
             logger.warning(

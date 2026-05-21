@@ -1,13 +1,17 @@
 """Tests for pipeline helpers."""
 
 import logging
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pandas as pd
 import pytest
 
-from plsdo.pipeline import _plot_verbose
+from plsdo.pipeline import _plot_verbose, run_pipeline
 from plsdo.plotting import VERBOSE_FEATURE_LIMIT
+
+DATA_DIR = Path(__file__).parent / "data"
 
 
 def _make_mock_model(n_x: int, n_y: int, n_components: int = 2):
@@ -124,3 +128,47 @@ class TestVerboseFeatureLimit:
         assert any("Skipping verbose plots" in msg for msg in caplog.messages)
         produced = sorted(p.name for p in figures_dir.iterdir())
         assert produced == ["scree.svg"]
+
+
+class TestMultiIndexSubjectScores:
+    """Integration: compound subject ID produces a two-level index in CSV."""
+
+    def test_multi_index_subject_scores_csv(self, tmp_path):
+        out = tmp_path / "output"
+        run_pipeline(
+            method="discriminatory",
+            y_path=DATA_DIR / "behaviour_multi.csv",
+            demographics_path=DATA_DIR / "demographics_multi.csv",
+            output_dir=out,
+            groups_path=DATA_DIR / "groups_multi.yaml",
+            n_perms=20,
+            n_bootstraps=20,
+            seed=42,
+            img_format="png",
+            dpi=72,
+        )
+        scores = pd.read_csv(out / "data" / "subject_scores.csv")
+        # Compound key: subject_id and run_id are both columns in the CSV
+        assert "subject_id" in scores.columns
+        assert "run_id" in scores.columns
+
+    def test_single_index_output_unchanged(self, tmp_path):
+        out = tmp_path / "output"
+        run_pipeline(
+            method="discriminatory",
+            y_path=DATA_DIR / "behaviour.csv",
+            demographics_path=DATA_DIR / "demographics.csv",
+            output_dir=out,
+            group_col="group",
+            subject_id="subject_id",
+            n_perms=20,
+            n_bootstraps=20,
+            seed=42,
+            img_format="png",
+            dpi=72,
+        )
+        scores = pd.read_csv(out / "data" / "subject_scores.csv")
+        # Single key: subject_id is the index column
+        assert "subject_id" in scores.columns
+        # run_id should NOT be present
+        assert "run_id" not in scores.columns
