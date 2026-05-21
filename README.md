@@ -20,15 +20,20 @@ Statistical validity is built in: every analysis runs a permutation test on sing
 Requires Python ≥ 3.10.
 
 ```bash
-git clone https://github.com/braincentrekcl/plsdo.git
-cd plsdo
-uv venv .venv && source .venv/bin/activate
-uv pip install -e .
+uv pip install plsdo
 ```
 
 For discriminatory PLS with cross-validation (requires scikit-learn):
 ```bash
-uv pip install -e ".[cv]"
+uv pip install "plsdo[cv]"
+```
+
+For development:
+```bash
+git clone https://github.com/braincentrekcl/plsdo.git
+cd plsdo
+uv venv .venv && source .venv/bin/activate
+uv pip install -e ".[dev]"
 ```
 
 ---
@@ -105,6 +110,13 @@ Issues and pull requests are welcome. Please open an issue before starting signi
 Contact: eilidh [dot] macnicol [at] kcl [dot] ac [dot] uk
 
 ---
+
+## Citation
+
+If you use `plsdo` in your research, please cite it.
+GitHub will show a "Cite this repository" prompt from the
+[CITATION.cff](CITATION.cff) file, or you can use the BibTeX
+entry in [docs/references.bib](docs/references.bib).
 
 ## Licence
 
