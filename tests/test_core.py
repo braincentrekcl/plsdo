@@ -122,6 +122,19 @@ class TestPermutationTest:
             m1.permuted_singular_values, m2.permuted_singular_values
         )
 
+    def test_random_data_not_significant(self):
+        """Permutation test on uncorrelated data should not yield significance."""
+        rng = np.random.default_rng(99)
+        X = rng.standard_normal((30, 5))
+        Y = rng.standard_normal((30, 4))
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(X), zscore_columns(Y), seed=7)
+        model.fit()
+        model.permutation_test(n_perms=500)
+
+        assert np.all(model.p_values > 0.001)
+
 
 class TestBootstrap:
     def _fitted_model(self, x_array, y_array):
@@ -178,6 +191,26 @@ class TestBootstrap:
         m2.bootstrap(n_bootstraps=100)
 
         np.testing.assert_array_equal(m1.u_bootstrap_ratios, m2.u_bootstrap_ratios)
+
+    def test_sign_consistency(self):
+        """Bootstrap loadings for the dominant feature should not flip sign."""
+        rng = np.random.default_rng(0)
+        n = 30
+        signal = rng.standard_normal(n)
+        X = np.column_stack([signal + 0.1 * rng.standard_normal(n) for _ in range(3)])
+        Y = np.column_stack([signal + 0.1 * rng.standard_normal(n) for _ in range(3)])
+        from plsdo.io import zscore_columns
+
+        X = zscore_columns(X)
+        Y = zscore_columns(Y)
+
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        model.bootstrap(n_bootstraps=100)
+
+        dominant_loading_sign = np.sign(model.u_loadings[0, 0])
+        dominant_bsr_sign = np.sign(model.u_bootstrap_ratios[0, 0])
+        assert dominant_loading_sign == dominant_bsr_sign
 
 
 class TestBootstrapZscoreX:
