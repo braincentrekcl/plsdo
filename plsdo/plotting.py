@@ -93,6 +93,14 @@ def plot_heatmap(
         annot=annotate,
         fmt=".2f" if annotate else "",
     )
+    tick_fontsize = max(4.0, min(10.0, 200 / max(n_rows, n_cols)))
+    ax.set_xticklabels(
+        ax.get_xticklabels(), rotation=45, ha="right",
+        fontsize=tick_fontsize,
+    )
+    ax.set_yticklabels(
+        ax.get_yticklabels(), rotation=0, fontsize=tick_fontsize,
+    )
     if subtitle:
         fig.suptitle(subtitle)
     plt.tight_layout()
