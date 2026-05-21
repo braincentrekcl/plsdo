@@ -90,9 +90,10 @@ class PLS:
             perm_s_list.append(perm_s)
 
         self.permuted_singular_values = np.stack(perm_s_list, axis=1)
-        self.p_values = np.mean(
-            self.permuted_singular_values >= self.s[:, None], axis=1
-        )
+        # Phipson & Smyth (2010) corrected p-value: exact Type I error control
+        self.p_values = (
+            np.sum(self.permuted_singular_values >= self.s[:, None], axis=1) + 1
+        ) / (n_perms + 1)
         self.significant_lvs = self.p_values < 0.05
 
     def bootstrap(self, n_bootstraps: int = 10000) -> None:

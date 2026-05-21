@@ -149,7 +149,7 @@ def permutation_test_cv(
         null_accs.append(result["mean_accuracy"])
 
     null_accs = np.array(null_accs)
-    p_value = np.mean(null_accs >= observed_accuracy)
+    p_value = (np.sum(null_accs >= observed_accuracy) + 1) / (n_permutations + 1)
 
     return {
         "p_value": p_value,
