@@ -88,6 +88,23 @@ This works for both `plsdo run` and `plsdo cross-validate`; for
 cross-validation the column with `role: x_axis` is used as the
 classification target.
 
+### Compound Subject IDs
+
+If subjects are identified by more than one column (e.g. a subject
+scanned across multiple runs), specify a list in the YAML:
+
+```yaml
+subject_id: [subject_id, run_id]
+groups:
+  - column: drug
+    role: x_axis
+```
+
+The pipeline aligns on the compound key and writes a multi-level
+index in the subject scores CSV.
+Compound keys are only supported via YAML — `--subject-id` accepts
+a single column name.
+
 ## Feature Metadata (Colour-Coding Loading Plots)
 
 To colour-code features by category in the loading bar plots, pass a
@@ -112,6 +129,16 @@ Override with `--bsr-threshold <float>` — e.g. `--bsr-threshold 2.58`
 for a stricter cut, or `--bsr-threshold 0` to plot every feature.
 The underlying `x_loadings.csv`, `y_loadings.csv`, `x_bootstrap_ratios.csv`,
 and `y_bootstrap_ratios.csv` are not filtered.
+
+## Verbose Plots and High-Dimensional Data
+
+`--all-plots` generates additional diagnostic figures (scree plot,
+rank-1 heatmaps, bootstrap ratio heatmaps, raw feature distributions).
+When the feature count exceeds 100, heatmaps and distribution plots
+become unreadable and extremely slow, so only the scree plot is
+produced.
+Override with `--verbose-feature-limit N` if you need the full set
+at higher dimensions — but the figures will degrade in quality.
 
 ## All Options
 
