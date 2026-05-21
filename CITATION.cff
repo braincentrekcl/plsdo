@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "plsdo: PLS covariance analysis with statistical testing"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - given-names: Eilidh
+    family-names: MacNicol
+    orcid: "https://orcid.org/0000-0003-3715-7012"
+license: BSD-3-Clause
+repository-code: "https://github.com/braincentrekcl/plsdo"
+version: "0.1.0"
+date-released: "2026-05-21"
