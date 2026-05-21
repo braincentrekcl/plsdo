@@ -144,8 +144,8 @@ class PLS:
             u_distribution.append(aligned_u_load * signs.T)
             vt_distribution.append(aligned_vt_load * signs)
 
-        self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2)
-        self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2)
+        self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2, ddof=1)
+        self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2, ddof=1)
 
         eps = 1e-12
         self.u_bootstrap_ratios = self.u_loadings / np.maximum(self.u_se, eps)
