@@ -62,7 +62,16 @@ Practical consequences: prefer stdlib over third-party where reasonable (argpars
 - Reference notebooks (`.dev/correlational_pls.ipynb`, `.dev/discriminatory_pls.ipynb`, `.dev/claude_cross_validation.py`) are the source of truth for computational steps and plot styling. Deviations require discussion. These files are gitignored and live only in your local working copy.
 - `.dev/superpowers/specs/` and `.dev/superpowers/plans/` contain the design spec and implementation plan. Consult them before making structural changes. These files are gitignored.
 
-## Before public release / PyPI submission
-- Claim the `plsdo` package name on PyPI before announcing the package publicly — squatting is a real risk once there is any visibility.
-- Update `README.md` and `docs/usage.md` installation instructions from `git clone` to `pip install plsdo` once the package is published.
+## Cutting a release
+
+The `plsdo` name is claimed on PyPI. Releases are automated via `.github/workflows/release.yml` and triggered by pushing a version tag.
+
+**Steps:**
+1. Bump `version` in `pyproject.toml` and `CITATION.cff` (keep `date-released` in sync).
+2. Commit: `chore: bump version to vX.Y.Z`
+3. Tag and push: `git tag vX.Y.Z && git push origin main --tags`
+4. The release workflow runs tests, builds, publishes to PyPI, and creates a GitHub release automatically.
+
+**Before first stable release:**
+- Update `README.md` and `docs/usage.md` installation instructions from `git clone` to `pip install plsdo`.
 - Bump version to `1.0.0` and update the `Development Status` classifier to `4 - Beta` or `5 - Production/Stable` as appropriate.
