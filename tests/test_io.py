@@ -129,6 +129,107 @@ class TestAlignSubjects:
         assert aligned[0].shape == (n_subjects, n_features + 1)
 
 
+class TestNormaliseSid:
+    def test_string_to_list(self):
+        assert _normalise_sid("subject_id") == ["subject_id"]
+
+    def test_list_passthrough(self):
+        assert _normalise_sid(["subject_id", "run_id"]) == ["subject_id", "run_id"]
+
+    def test_tuple_to_list(self):
+        assert _normalise_sid(("subject_id", "run_id")) == ["subject_id", "run_id"]
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="at least one"):
+            _normalise_sid([])
+
+    def test_bad_type_raises(self):
+        with pytest.raises(TypeError, match="string or list"):
+            _normalise_sid(42)
+
+
+class TestDetectSubjectIdMultiColumn:
+    def test_explicit_multi_column(self, data_dir):
+        brain = pd.read_csv(data_dir / "brain_multi.csv")
+        behaviour = pd.read_csv(data_dir / "behaviour_multi.csv")
+        sid = detect_subject_id([brain, behaviour], subject_id=["subject_id", "run_id"])
+        assert sid == ["subject_id", "run_id"]
+
+    def test_explicit_multi_column_missing(self, data_dir):
+        brain = pd.read_csv(data_dir / "brain_multi.csv")
+        behaviour = pd.read_csv(data_dir / "behaviour_multi.csv")
+        with pytest.raises(ValueError, match="not found"):
+            detect_subject_id(
+                [brain, behaviour], subject_id=["subject_id", "nonexistent"]
+            )
+
+    def test_explicit_single_returns_list(self):
+        df1 = pd.DataFrame({"id": [1], "v": [2]})
+        df2 = pd.DataFrame({"id": [1], "w": [3]})
+        sid = detect_subject_id([df1, df2], subject_id="id")
+        assert sid == ["id"]
+        assert isinstance(sid, list)
+
+    def test_auto_detect_returns_list(self):
+        df1 = pd.DataFrame({"id": [1], "v": [2]})
+        df2 = pd.DataFrame({"id": [1], "w": [3]})
+        sid = detect_subject_id([df1, df2])
+        assert sid == ["id"]
+        assert isinstance(sid, list)
+
+
+class TestAlignSubjectsMultiColumn:
+    def test_multi_column_alignment(self, data_dir):
+        brain = pd.read_csv(data_dir / "brain_multi.csv")
+        behaviour = pd.read_csv(data_dir / "behaviour_multi.csv")
+        aligned = align_subjects(
+            [brain, behaviour], subject_id=["subject_id", "run_id"]
+        )
+        assert len(aligned) == 2
+        assert len(aligned[0]) == 12
+        # Both dataframes should have the same compound key order
+        keys_0 = list(
+            aligned[0][["subject_id", "run_id"]].itertuples(index=False, name=None)
+        )
+        keys_1 = list(
+            aligned[1][["subject_id", "run_id"]].itertuples(index=False, name=None)
+        )
+        assert keys_0 == keys_1
+
+    def test_multi_column_drops_non_shared(self, caplog):
+        df1 = pd.DataFrame(
+            {"sid": ["a", "a", "b"], "run": [1, 2, 1], "v1": [10, 20, 30]}
+        )
+        df2 = pd.DataFrame(
+            {"sid": ["a", "b", "b"], "run": [1, 1, 2], "v2": [40, 50, 60]}
+        )
+        with caplog.at_level("WARNING", logger="plsdo"):
+            aligned = align_subjects([df1, df2], subject_id=["sid", "run"])
+        # Only (a, 1) and (b, 1) are shared
+        assert len(aligned[0]) == 2
+        assert "not present in all files" in caplog.text
+
+    def test_multi_column_empty_intersection_raises(self):
+        df1 = pd.DataFrame(
+            {"sid": ["a", "a"], "run": [1, 2], "v1": [10, 20]}
+        )
+        df2 = pd.DataFrame(
+            {"sid": ["b", "b"], "run": [1, 2], "v2": [30, 40]}
+        )
+        with pytest.raises(ValueError, match="No subjects shared"):
+            align_subjects([df1, df2], subject_id=["sid", "run"])
+
+    def test_single_element_list_matches_string(self):
+        df1 = pd.DataFrame({"id": ["a", "b", "c"], "v1": [1, 2, 3]})
+        df2 = pd.DataFrame({"id": ["c", "a", "b"], "v2": [30, 10, 20]})
+        aligned_str = align_subjects([df1.copy(), df2.copy()], subject_id="id")
+        aligned_list = align_subjects(
+            [df1.copy(), df2.copy()], subject_id=["id"]
+        )
+        for a, b in zip(aligned_str, aligned_list):
+            pd.testing.assert_frame_equal(a, b)
+
+
 class TestCheckMissingValues:
     def test_no_missing_passes(self):
         df = pd.DataFrame({"id": ["a", "b"], "v1": [1.0, 2.0], "v2": [3.0, 4.0]})
@@ -244,6 +345,44 @@ class TestParseGroupsConfig:
         )
         with pytest.raises(ValueError, match="Invalid role"):
             parse_groups_config(cfg)
+
+    def test_yaml_list_subject_id(self, tmp_path):
+        cfg = tmp_path / "multi.yaml"
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": ["subject_id", "run_id"],
+                    "groups": [{"column": "group", "role": "x_axis"}],
+                }
+            )
+        )
+        config = parse_groups_config(cfg)
+        assert config.subject_id == ["subject_id", "run_id"]
+
+    def test_unlisted_columns_excludes_multi_subject_id(self, tmp_path, caplog):
+        cfg = tmp_path / "multi_sid.yaml"
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": ["subject_id", "run_id"],
+                    "groups": [{"column": "group", "role": "x_axis"}],
+                }
+            )
+        )
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["a"],
+                "run_id": [1],
+                "group": ["A"],
+                "extra": [99],
+            }
+        )
+        with caplog.at_level("WARNING", logger="plsdo"):
+            parse_groups_config(cfg, demographics_df=demo)
+        # subject_id and run_id should be excluded from the unlisted warning
+        assert "subject_id" not in caplog.text
+        assert "run_id" not in caplog.text
+        assert "extra" in caplog.text
 
 
 class TestLoadMetadata:

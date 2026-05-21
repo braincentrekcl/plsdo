@@ -1,0 +1,13 @@
+subject_id,run_id,group,sex
+s01,run1,A,M
+s01,run2,A,M
+s02,run1,A,F
+s02,run2,A,F
+s03,run1,B,M
+s03,run2,B,M
+s04,run1,B,F
+s04,run2,B,F
+s05,run1,C,M
+s05,run2,C,M
+s06,run1,C,F
+s06,run2,C,F
