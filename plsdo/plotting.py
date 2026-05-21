@@ -725,6 +725,7 @@ def plot_confusion_matrix(
         display_labels=label_names,
     )
     disp.plot(ax=ax, cmap="Blues", values_format=".0%")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     ax.set_title(f"CV confusion matrix\nAccuracy: {mean_accuracy:.1%}")
     plt.tight_layout()
     fig.savefig(out_path, transparent=False, dpi=dpi)
