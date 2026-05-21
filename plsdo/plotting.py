@@ -14,6 +14,9 @@ logger = logging.getLogger("plsdo")
 # Threshold above which heatmap annotations are suppressed
 ANNOTATION_THRESHOLD = 30
 
+# Maximum number of features before verbose plots are skipped
+VERBOSE_FEATURE_LIMIT = 100
+
 
 def figure_size(
     n_rows: int,
