@@ -2,20 +2,22 @@
 
 ## Installation
 
+Requires Python ≥ 3.10.
+
 ```bash
-git clone https://github.com/braincentrekcl/plsdo.git
-cd plsdo
-uv venv .venv && source .venv/bin/activate
-uv pip install -e .
+uv pip install plsdo
 ```
 
 For discriminatory PLS with cross-validation (requires scikit-learn):
 ```bash
-uv pip install -e ".[cv]"
+uv pip install "plsdo[cv]"
 ```
 
 For development:
 ```bash
+git clone https://github.com/braincentrekcl/plsdo.git
+cd plsdo
+uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
