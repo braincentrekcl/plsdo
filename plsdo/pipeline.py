@@ -152,9 +152,19 @@ def run_pipeline(
     if method == "correlational":
         x_aligned, y_aligned, demo_aligned = aligned
         x_feature_names = [c for c in x_aligned.columns if c not in sid]
+        x_display_names = x_feature_names
     else:
         y_aligned, demo_aligned = aligned
         X_design, x_feature_names = build_design_matrix(demo_aligned, config)
+        non_ignore = [g for g in config.groups if g.role != "ignore"]
+        if len(non_ignore) == 1:
+            prefix = non_ignore[0].column + "_"
+            x_display_names = [
+                name[len(prefix):] if name.startswith(prefix) else name
+                for name in x_feature_names
+            ]
+        else:
+            x_display_names = x_feature_names
 
     y_feature_names = [c for c in y_aligned.columns if c not in sid]
 
@@ -264,7 +274,7 @@ def run_pipeline(
         model.xcorr,
         v=1.0,
         xticklabels=y_feature_names,
-        yticklabels=x_feature_names,
+        yticklabels=x_display_names,
         out_path=figures_dir / f"cross_correlation.{ext}",
         dpi=dpi,
     )
@@ -291,7 +301,7 @@ def run_pipeline(
                 model.u_loadings[:, lv_idx],
                 model.u_se[:, lv_idx],
                 model.u_bootstrap_ratios[:, lv_idx],
-                x_feature_names,
+                x_display_names,
                 x_colours,
             ),
             (
@@ -358,6 +368,7 @@ def run_pipeline(
             X=X,
             Y=Y,
             x_feature_names=x_feature_names,
+            x_display_names=x_display_names,
             y_feature_names=y_feature_names,
             x_colours=x_colours,
             y_colours=y_colours,
@@ -623,6 +634,7 @@ def _plot_verbose(
     X: np.ndarray,
     Y: np.ndarray,
     x_feature_names: list,
+    x_display_names: list,
     y_feature_names: list,
     x_colours,
     y_colours,
@@ -680,7 +692,7 @@ def _plot_verbose(
             u=model.u,
             s=model.s,
             vt=model.vt,
-            x_feature_names=x_feature_names,
+            x_feature_names=x_display_names,
             y_feature_names=y_feature_names,
             out_path=figures_dir / f"LV{i + 1}_heatmap.{ext}",
             x_colours=x_colours,
@@ -692,7 +704,7 @@ def _plot_verbose(
     if len(final_lv_names) > 0:
         plot_bootstrap_heatmap(
             bootstrap_ratios=model.u_bootstrap_ratios[:, final_lv_indices],
-            feature_names=x_feature_names,
+            feature_names=x_display_names,
             lv_names=final_lv_names,
             out_path=figures_dir / f"X_bootstrap_heatmap.{ext}",
             colours=x_colours,
