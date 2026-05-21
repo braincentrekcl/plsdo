@@ -1,5 +1,8 @@
 # plsdo
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20333467.svg)](https://doi.org/10.5281/zenodo.20333467)
+
+
 Partial Least Squares (PLS) covariance analysis with permutation testing, bootstrap reliability, and publication-ready visualisation — from the command line.
 
 (Pronounced: "please do")
