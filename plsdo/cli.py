@@ -113,6 +113,21 @@ def pls_main(argv=None):
             "THRESHOLD (default: 1.96). Does not affect CSV outputs."
         ),
     )
+    from plsdo.plotting import VERBOSE_FEATURE_LIMIT
+
+    run_parser.add_argument(
+        "--verbose-feature-limit",
+        default=None,
+        type=int,
+        help=(
+            f"Maximum features for verbose plots (default: "
+            f"{VERBOSE_FEATURE_LIMIT}). Above this limit, only the scree "
+            f"plot is produced — heatmaps and distribution plots become "
+            f"unreadable and extremely slow at high feature counts. "
+            f"Raising this value will incrementally degrade the quality "
+            f"and utility of the figures."
+        ),
+    )
 
     # --- plsdo cross-validate ---
     cv_parser = subparsers.add_parser(
@@ -231,6 +246,7 @@ def _dispatch_run(args):
         dpi=args.dpi,
         all_plots=args.all_plots,
         bsr_threshold=args.bsr_threshold,
+        verbose_feature_limit=args.verbose_feature_limit,
     )
 
 
