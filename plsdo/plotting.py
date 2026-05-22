@@ -267,41 +267,36 @@ def plot_scores_boxstrip(
     else:
         kwargs["col_wrap"] = 2
 
-    g = sns.catplot(
+    g = sns.FacetGrid(
         data=scores_df,
-        x=x_col,
-        y=y_col,
-        hue=hue,
-        hue_order=hue_order,
         col=col_col,
-        order=order,
-        kind="box",
         sharex=False,
-        palette=palette,
-        saturation=1.0,
-        dodge=needs_dodge,
+        **kwargs,
+    )
+    g.map_dataframe(
+        sns.boxplot,
+        x=x_col, y=y_col, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, saturation=1.0, dodge=needs_dodge,
         boxprops={"edgecolor": "gray", "alpha": 0.5},
         medianprops={"color": "k", "ls": "--", "lw": 1},
         whiskerprops={"color": "gray", "ls": "-", "lw": 1},
         showfliers=False,
-        legend_out=True,
-        **kwargs,
     )
-    for ax, (_, facet_data) in zip(
-        g.axes.flat, scores_df.groupby(col_col),
-    ):
-        sns.stripplot(
-            data=facet_data,
-            x=x_col, y=y_col, hue=hue,
-            order=order, hue_order=hue_order,
-            palette=palette, dodge=needs_dodge,
-            size=5, jitter=True,
-            linewidth=1, edgecolor=".5",
-            ax=ax, legend=False,
-        )
+    g.map_dataframe(
+        sns.stripplot,
+        x=x_col, y=y_col, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, dodge=needs_dodge,
+        size=5, jitter=True,
+        linewidth=1, edgecolor=".5",
+        legend=False,
+    )
+    for ax in g.axes.flat:
         ax.set_xticklabels(
             ax.get_xticklabels(), rotation=45, ha="right",
         )
+    g.add_legend()
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
     plt.close()
@@ -580,40 +575,36 @@ def plot_raw_distributions(
     )
 
     order = sorted(long_df[group_col].unique())
+    palette = dict(zip(order, sns.color_palette("Set2", n_colors=len(order))))
     n_features = len(feature_names)
     col_wrap = min(4, n_features)
 
-    g = sns.catplot(
+    g = sns.FacetGrid(
         data=long_df,
-        x=group_col,
-        y="z-score",
-        hue=group_col,
         col="feature",
         col_wrap=col_wrap,
-        order=order,
-        kind="box",
-        palette="Set2",
+        sharex=False,
+    )
+    g.map_dataframe(
+        sns.boxplot,
+        x=group_col, y="z-score", hue=group_col,
+        order=order, hue_order=order,
+        palette=palette, saturation=1.0,
         boxprops={"edgecolor": "gray", "alpha": 0.5},
         medianprops={"color": "k", "ls": "--", "lw": 1},
         whiskerprops={"color": "gray", "ls": "-", "lw": 1},
         showfliers=False,
-        legend_out=True,
-        sharex=False,
     )
-    g.map(
+    g.map_dataframe(
         sns.stripplot,
-        group_col,
-        "z-score",
-        group_col,
-        order=order,
-        hue_order=order,
-        size=5,
-        dodge=True,
-        palette="Set2",
-        jitter=True,
-        linewidth=1,
-        edgecolor=".5",
+        x=group_col, y="z-score", hue=group_col,
+        order=order, hue_order=order,
+        palette=palette,
+        size=5, jitter=True, dodge=True,
+        linewidth=1, edgecolor=".5",
+        legend=False,
     )
+    g.add_legend()
     plt.tight_layout()
     g.savefig(out_path, transparent=False, dpi=dpi)
     plt.close()

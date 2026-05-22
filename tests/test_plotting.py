@@ -159,21 +159,25 @@ class TestPlotScoresBoxstrip:
         import seaborn as sns
         from plsdo import plotting as plotting_mod
 
-        captured = {}
-        real_catplot = sns.catplot
+        captured = {"boxplot": [], "stripplot": []}
+        real_boxplot = sns.boxplot
         real_stripplot = sns.stripplot
 
-        def spy_catplot(*args, **kwargs):
-            captured["catplot_palette"] = kwargs.get("palette")
-            captured["catplot_hue_order"] = kwargs.get("hue_order")
-            return real_catplot(*args, **kwargs)
+        def spy_boxplot(*args, **kwargs):
+            captured["boxplot"].append({
+                "palette": kwargs.get("palette"),
+                "hue_order": kwargs.get("hue_order"),
+            })
+            return real_boxplot(*args, **kwargs)
 
         def spy_stripplot(*args, **kwargs):
-            captured["strip_palette"] = kwargs.get("palette")
-            captured["strip_hue_order"] = kwargs.get("hue_order")
+            captured["stripplot"].append({
+                "palette": kwargs.get("palette"),
+                "hue_order": kwargs.get("hue_order"),
+            })
             return real_stripplot(*args, **kwargs)
 
-        monkeypatch.setattr(plotting_mod.sns, "catplot", spy_catplot)
+        monkeypatch.setattr(plotting_mod.sns, "boxplot", spy_boxplot)
         monkeypatch.setattr(plotting_mod.sns, "stripplot", spy_stripplot)
 
         rng = np.random.default_rng(0)
@@ -196,10 +200,84 @@ class TestPlotScoresBoxstrip:
             col_col="LV",
             out_path=out,
         )
-        assert isinstance(captured["catplot_palette"], dict)
-        assert captured["catplot_palette"] == captured["strip_palette"]
-        assert captured["catplot_hue_order"] == captured["strip_hue_order"]
-        assert captured["catplot_hue_order"] == ["A", "B", "C"]
+        assert len(captured["boxplot"]) >= 1
+        assert len(captured["stripplot"]) >= 1
+        box_call = captured["boxplot"][0]
+        strip_call = captured["stripplot"][0]
+        assert isinstance(box_call["palette"], dict)
+        assert box_call["palette"] == strip_call["palette"]
+        assert box_call["hue_order"] == strip_call["hue_order"]
+        assert box_call["hue_order"] == ["A", "B", "C"]
+
+    def test_non_alphabetical_order_colours_match(self, tmp_output, monkeypatch):
+        """Box and strip colours must match when group order differs from
+        alphabetical data appearance order.
+
+        This is the exact scenario that triggered the catplot bug: data
+        rows appear alphabetically but the Categorical specifies a
+        non-alphabetical order.
+        """
+        from plsdo import plotting as plotting_mod
+
+        cat_order = ["S", "K", "M", "C", "D", "P - High", "P - Low", "L"]
+        rng = np.random.default_rng(42)
+        rows = []
+        for g in sorted(cat_order):  # alphabetical data appearance
+            for _ in range(5):
+                rows.append({"group": g, "score": rng.standard_normal(), "LV": "LV1"})
+        scores_df = pd.DataFrame(rows)
+        scores_df["group"] = pd.Categorical(
+            scores_df["group"], categories=cat_order, ordered=True,
+        )
+
+        # Prevent plt.close so we can inspect the rendered figure
+        monkeypatch.setattr(plotting_mod.plt, "close", lambda *a, **kw: None)
+
+        out = tmp_output / "scores_non_alpha.png"
+        plot_scores_boxstrip(
+            scores_df=scores_df,
+            x_col="group",
+            y_col="score",
+            col_col="LV",
+            out_path=out,
+        )
+
+        fig = plt.gcf()
+        ax = fig.axes[0]
+
+        # Collect box patch facecolours (skip fully transparent patches)
+        box_colours = []
+        for patch in ax.patches:
+            fc = patch.get_facecolor()
+            if fc[3] > 0:  # not transparent
+                box_colours.append(tuple(fc[:3]))
+
+        # Collect strip point colours per x-position
+        strip_colours = {}
+        for coll in ax.collections:
+            offsets = coll.get_offsets()
+            fcs = coll.get_facecolors()
+            if len(offsets) == 0:
+                continue
+            for offset, fc in zip(offsets, fcs):
+                x_pos = round(offset[0])
+                strip_colours.setdefault(x_pos, set()).add(
+                    tuple(fc[:3].round(4))
+                )
+
+        # Each box patch colour should match the strip colour at the
+        # same position.
+        assert len(box_colours) == len(cat_order), (
+            f"Expected {len(cat_order)} box patches, got {len(box_colours)}"
+        )
+        for pos_idx, box_rgb in enumerate(box_colours):
+            box_rgb_rounded = tuple(round(c, 4) for c in box_rgb)
+            strip_rgbs = strip_colours.get(pos_idx, set())
+            assert box_rgb_rounded in strip_rgbs, (
+                f"Position {pos_idx} ({cat_order[pos_idx]}): "
+                f"box={box_rgb_rounded} not in strip={strip_rgbs}"
+            )
+        plt.close("all")
 
 
 class TestPlotScoresScatter:
