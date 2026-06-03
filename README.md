@@ -46,7 +46,7 @@ uv pip install -e ".[dev]"
 ### Correlational PLS
 
 ```bash
-plsdo run --method c \
+plsdo correlational \
   --x brain_measures.csv \
   --y behaviour_scores.csv \
   --demographics participants.csv \
@@ -58,13 +58,16 @@ plsdo run --method c \
 ### Discriminatory PLS
 
 ```bash
-plsdo run --method d \
+plsdo discriminatory \
   --y mri_features.csv \
   --demographics participants.csv \
   --group-col drug_group \
   --subject-id participant_id \
   --output results/
 ```
+
+`corr` and `discrim` are accepted as short aliases for `correlational`
+and `discriminatory`.
 
 ### Cross-validation (discriminatory only)
 
