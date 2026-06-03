@@ -50,3 +50,6 @@ jobs:
 
       - name: Run ruff
         run: ruff check plsdo/ tests/
+
+      - name: Check version consistency
+        run: python scripts/check_version.py
