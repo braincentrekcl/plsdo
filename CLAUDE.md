@@ -20,11 +20,12 @@ uv pip install -e ".[dev]"
 
 ## Architecture
 
-The package has a strict separation of concerns across five modules:
+The package has a strict separation of concerns across these modules:
 
 - **`io.py`** — everything that touches files or validates inputs: loading CSVs, detecting subject IDs, aligning subjects, checking missing values and variance, z-scoring, parsing YAML group configs, loading feature metadata, and building the dummy-coded design matrix.
+- **`stats.py`** — shared statistical helpers with no PLS state. Currently `corrected_pvalue()`, the Phipson & Smyth permutation p-value used by both `core.py` and `cross_validate.py` (a leaf module both can import without coupling).
 - **`core.py`** — the `PLS` class. Stateful: takes z-scored arrays, runs `fit()` → `permutation_test()` → `bootstrap()` → `filter_lvs()` in sequence. Stores results as instance attributes.
-- **`cross_validate.py`** — `run_cv()` and `permutation_test_cv()`. Uses `sklearn.PLSRegression` (not the SVD-based `PLS` class) because prediction requires `predict()`. Entirely independent of `core.py`.
+- **`cross_validate.py`** — `run_cv()` and `permutation_test_cv()`. Uses `sklearn.PLSRegression` (not the SVD-based `PLS` class) because prediction requires `predict()`. Independent of `core.py` (shares only `stats.py`).
 - **`plotting.py`** — stateless functions. All take data arrays and an `out_path`, save the figure, return nothing. `meta_colours()` is here too (not in pipeline).
 - **`pipeline.py`** — orchestration only. Calls `io` → `core` → `plotting` in sequence, writes CSVs and `log.txt`. No computation here.
 - **`cli.py`** — argument parsing and validation only. Dispatches to `pipeline.run_pipeline()` or `pipeline.cross_validate_pipeline()`.
