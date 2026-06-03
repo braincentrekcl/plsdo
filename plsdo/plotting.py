@@ -45,6 +45,25 @@ def figure_size(
     return (width, height)
 
 
+def _finalise(target: "plt.Figure | sns.FacetGrid", out_path: Path, dpi: int) -> None:
+    """Tidy layout, save, and close a Figure or seaborn grid.
+
+    Centralises the ``transparent=False`` + ``dpi`` save convention used by
+    every plot. ``target`` is a matplotlib Figure or a seaborn FacetGrid;
+    ``tight_layout`` is called on it directly rather than via pyplot global
+    state.
+    """
+    target.tight_layout()
+    target.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(target if isinstance(target, plt.Figure) else target.figure)
+
+
+def _categorical_palette(levels: "list | np.ndarray") -> dict:
+    """Map ordered category levels to stable Set2 colours (level -> colour)."""
+    levels = list(levels)
+    return dict(zip(levels, sns.color_palette("Set2", n_colors=len(levels))))
+
+
 def plot_heatmap(
     data: np.ndarray,
     v: float,
@@ -55,8 +74,7 @@ def plot_heatmap(
     row_colors: Optional[list] = None,
     col_colors: Optional[list] = None,
     dpi: int = 300,
-    return_fig: bool = False,
-) -> Optional[tuple]:
+) -> None:
     """Plot a heatmap with diverging colour scale.
 
     Reference: correlational_pls.ipynb heatmapplot function.
@@ -72,8 +90,6 @@ def plot_heatmap(
     row_colors, col_colors : list, optional
         Colour bars for row/column groupings.
     dpi : int
-    return_fig : bool
-        If True, return (fig, ax) instead of closing.
     """
     n_rows, n_cols = data.shape
     figsize = figure_size(n_rows, n_cols)
@@ -103,13 +119,7 @@ def plot_heatmap(
     )
     if subtitle:
         fig.suptitle(subtitle)
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-
-    if return_fig:
-        return fig, ax
-    plt.close(fig)
-    return None
+    _finalise(fig, out_path, dpi)
 
 
 def plot_permutation(
@@ -155,9 +165,7 @@ def plot_permutation(
 
     fig.legend(["Observed"], loc="upper right")
     fig.suptitle("Singular value vs null distribution", fontsize=12)
-    fig.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_loadings(
@@ -207,9 +215,78 @@ def plot_loadings(
         ecolor="red",
     )
     ax.set_title(f"Loadings for {lv_name}")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
+
+
+# Shared styling for the box+strip overlay used by both the score and the
+# raw-distribution facet plots. Kept in one place so the two stay identical.
+_BOXPLOT_STYLE = dict(
+    saturation=1.0,
+    boxprops={"edgecolor": "gray", "alpha": 0.5},
+    medianprops={"color": "k", "ls": "--", "lw": 1},
+    whiskerprops={"color": "gray", "ls": "-", "lw": 1},
+    showfliers=False,
+)
+_STRIPPLOT_STYLE = dict(
+    size=5,
+    jitter=True,
+    linewidth=1,
+    edgecolor=".5",
+    legend=False,
+)
+
+
+def _box_strip_facet(
+    data: pd.DataFrame,
+    *,
+    x: str,
+    y: str,
+    hue: str,
+    order: list,
+    hue_order: list,
+    palette: dict,
+    col: str,
+    out_path: Path,
+    dpi: int,
+    box_dodge: "bool | str",
+    strip_dodge: "bool | str",
+    col_wrap: Optional[int] = None,
+    row: Optional[str] = None,
+    rotate_xticklabels: bool = False,
+) -> None:
+    """Render a box + strip overlay on a per-facet FacetGrid and save it.
+
+    Both seaborn layers receive the same ``palette`` dict and ``hue_order`` so
+    box and strip colours always agree. Shared by ``plot_scores_boxstrip`` and
+    ``plot_raw_distributions``; the palette-consistency regression tests in
+    test_plotting.py drive this shared colour logic via ``plot_scores_boxstrip``.
+    """
+    grid_kwargs = {}
+    if col_wrap is not None:
+        grid_kwargs["col_wrap"] = col_wrap
+    elif row is not None:
+        grid_kwargs["row"] = row
+
+    g = sns.FacetGrid(data=data, col=col, sharex=False, **grid_kwargs)
+    g.map_dataframe(
+        sns.boxplot,
+        x=x, y=y, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, dodge=box_dodge,
+        **_BOXPLOT_STYLE,
+    )
+    g.map_dataframe(
+        sns.stripplot,
+        x=x, y=y, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, dodge=strip_dodge,
+        **_STRIPPLOT_STYLE,
+    )
+    if rotate_xticklabels:
+        for ax in g.axes.flat:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    g.add_legend()
+    _finalise(g, out_path, dpi)
 
 
 def plot_scores_boxstrip(
@@ -256,50 +333,29 @@ def plot_scores_boxstrip(
         if hasattr(scores_df[hue], "cat")
         else sorted(scores_df[hue].unique())
     )
-    palette = dict(zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order))))
+    palette = _categorical_palette(hue_order)
     needs_dodge = hue != x_col
 
-    kwargs = {}
-    if col_wrap is not None:
-        kwargs["col_wrap"] = col_wrap
-    elif row_col is not None:
-        kwargs["row"] = row_col
-    else:
-        kwargs["col_wrap"] = 2
+    if col_wrap is None and row_col is None:
+        col_wrap = 2
 
-    g = sns.FacetGrid(
-        data=scores_df,
+    _box_strip_facet(
+        scores_df,
+        x=x_col,
+        y=y_col,
+        hue=hue,
+        order=order,
+        hue_order=hue_order,
+        palette=palette,
         col=col_col,
-        sharex=False,
-        **kwargs,
+        out_path=out_path,
+        dpi=dpi,
+        box_dodge=needs_dodge,
+        strip_dodge=needs_dodge,
+        col_wrap=col_wrap,
+        row=row_col,
+        rotate_xticklabels=True,
     )
-    g.map_dataframe(
-        sns.boxplot,
-        x=x_col, y=y_col, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, saturation=1.0, dodge=needs_dodge,
-        boxprops={"edgecolor": "gray", "alpha": 0.5},
-        medianprops={"color": "k", "ls": "--", "lw": 1},
-        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
-        showfliers=False,
-    )
-    g.map_dataframe(
-        sns.stripplot,
-        x=x_col, y=y_col, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, dodge=needs_dodge,
-        size=5, jitter=True,
-        linewidth=1, edgecolor=".5",
-        legend=False,
-    )
-    for ax in g.axes.flat:
-        ax.set_xticklabels(
-            ax.get_xticklabels(), rotation=45, ha="right",
-        )
-    g.add_legend()
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
 
 
 def plot_scores_scatter(
@@ -342,9 +398,7 @@ def plot_scores_scatter(
     )
     g.set_axis_labels(x_var="X score", y_var="Y score")
     g.figure.suptitle(f"Score scatter for {lv_name}", y=1.02)
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
+    _finalise(g, out_path, dpi)
 
 
 def plot_cv_accuracy(
@@ -376,9 +430,7 @@ def plot_cv_accuracy(
     ax.set_ylabel("Count")
     ax.set_title("Per-fold accuracy distribution")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_cv_permutation(
@@ -411,9 +463,7 @@ def plot_cv_permutation(
     ax.set_ylabel("Count")
     ax.set_title(f"Permutation test (p = {p_value:.4f})")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def meta_colours(
@@ -443,12 +493,7 @@ def meta_colours(
         )
         return None
     colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
-    palette = dict(
-        zip(
-            meta_df["category"].unique(),
-            sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
-        )
-    )
+    palette = _categorical_palette(meta_df["category"].unique())
     return [palette.get(colour_map.get(f), "steelblue") for f in feature_names]
 
 
@@ -575,39 +620,25 @@ def plot_raw_distributions(
     )
 
     order = sorted(long_df[group_col].unique())
-    palette = dict(zip(order, sns.color_palette("Set2", n_colors=len(order))))
+    palette = _categorical_palette(order)
     n_features = len(feature_names)
     col_wrap = min(4, n_features)
 
-    g = sns.FacetGrid(
-        data=long_df,
-        col="feature",
-        col_wrap=col_wrap,
-        sharex=False,
-    )
-    g.map_dataframe(
-        sns.boxplot,
-        x=group_col, y="z-score", hue=group_col,
-        order=order, hue_order=order,
-        palette=palette, saturation=1.0,
-        boxprops={"edgecolor": "gray", "alpha": 0.5},
-        medianprops={"color": "k", "ls": "--", "lw": 1},
-        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
-        showfliers=False,
-    )
-    g.map_dataframe(
-        sns.stripplot,
-        x=group_col, y="z-score", hue=group_col,
-        order=order, hue_order=order,
+    _box_strip_facet(
+        long_df,
+        x=group_col,
+        y="z-score",
+        hue=group_col,
+        order=order,
+        hue_order=order,
         palette=palette,
-        size=5, jitter=True, dodge=True,
-        linewidth=1, edgecolor=".5",
-        legend=False,
+        col="feature",
+        out_path=out_path,
+        dpi=dpi,
+        box_dodge="auto",
+        strip_dodge=True,
+        col_wrap=col_wrap,
     )
-    g.add_legend()
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
 
 
 def plot_scree(
@@ -647,9 +678,7 @@ def plot_scree(
         Patch(facecolor="lightgray", label="p \u2265 0.05"),
     ]
     ax.legend(handles=legend_elements, loc="upper right")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_cv_convergence(
@@ -696,9 +725,7 @@ def plot_cv_convergence(
     ax.set_ylabel("Cumulative mean accuracy")
     ax.set_title("Convergence of CV accuracy estimate with increasing repeats")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_confusion_matrix(
@@ -722,6 +749,4 @@ def plot_confusion_matrix(
     disp.plot(ax=ax, cmap="Blues", values_format=".0%")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     ax.set_title(f"CV confusion matrix\nAccuracy: {mean_accuracy:.1%}")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)

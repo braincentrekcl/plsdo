@@ -288,6 +288,40 @@ def zscore_columns(arr: np.ndarray) -> np.ndarray:
     return zscore(arr, axis=0, ddof=0)
 
 
+def corrected_pvalue(
+    observed: "float | np.ndarray", null: np.ndarray, axis: int = -1
+) -> "float | np.ndarray":
+    """Permutation p-value with the Phipson & Smyth (2010) +1 correction.
+
+    Computes ``(#{null >= observed} + 1) / (n_permutations + 1)``. The +1 in
+    numerator and denominator keeps the p-value strictly positive — a
+    permutation test can never legitimately return p = 0 — and gives exact
+    Type I error control. Shared by ``core.PLS`` and ``cross_validate``.
+
+    Parameters
+    ----------
+    observed : float or ndarray
+        Observed statistic(s). May have leading axes that broadcast against
+        ``null`` once the permutation ``axis`` is removed.
+    null : ndarray
+        Null distribution. ``axis`` indexes the permutation replicates; any
+        remaining axes must align with ``observed`` (e.g. ``observed`` shape
+        ``(n_lvs,)`` against ``null`` shape ``(n_lvs, n_perms)`` with ``axis=1``).
+    axis : int
+        Axis of ``null`` holding the permutation replicates (default last).
+
+    Returns
+    -------
+    float or ndarray
+        Corrected p-value(s), shaped like ``observed``.
+    """
+    observed = np.asarray(observed)
+    null = np.asarray(null)
+    n_perms = null.shape[axis]
+    exceed = np.sum(null >= np.expand_dims(observed, axis), axis=axis)
+    return (exceed + 1) / (n_perms + 1)
+
+
 VALID_ROLES = {"x_axis", "hue", "facet_rows", "facet_cols", "ignore"}
 
 
@@ -318,6 +352,24 @@ class GroupConfig:
         return cls(
             subject_id=subject_id,
             groups=[GroupSpec(column=group_col, role="x_axis")],
+        )
+
+    def active_groups(self) -> list[GroupSpec]:
+        """Group specs that participate in the analysis (role != 'ignore')."""
+        return [g for g in self.groups if g.role != "ignore"]
+
+    def x_axis_group(self) -> Optional[GroupSpec]:
+        """The group plotted on the x-axis: the explicit 'x_axis' role if any,
+        else the first active group. None if no group is active."""
+        active = self.active_groups()
+        if not active:
+            return None
+        return next((g for g in active if g.role == "x_axis"), active[0])
+
+    def hue_column(self) -> Optional[str]:
+        """Column name of the group with role 'hue', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "hue"), None
         )
 
 

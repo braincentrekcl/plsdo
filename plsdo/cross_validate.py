@@ -11,6 +11,8 @@ from sklearn.metrics import (
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
+from plsdo.io import corrected_pvalue
+
 
 def run_cv(
     X: np.ndarray,
@@ -149,7 +151,7 @@ def permutation_test_cv(
         null_accs.append(result["mean_accuracy"])
 
     null_accs = np.array(null_accs)
-    p_value = (np.sum(null_accs >= observed_accuracy) + 1) / (n_permutations + 1)
+    p_value = corrected_pvalue(observed_accuracy, null_accs)
 
     return {
         "p_value": p_value,

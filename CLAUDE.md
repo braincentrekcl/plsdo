@@ -22,9 +22,9 @@ uv pip install -e ".[dev]"
 
 The package has a strict separation of concerns across five modules:
 
-- **`io.py`** — everything that touches files or validates inputs: loading CSVs, detecting subject IDs, aligning subjects, checking missing values and variance, z-scoring, parsing YAML group configs, loading feature metadata, and building the dummy-coded design matrix.
+- **`io.py`** — everything that touches files or validates inputs: loading CSVs, detecting subject IDs, aligning subjects, checking missing values and variance, z-scoring, parsing YAML group configs, loading feature metadata, and building the dummy-coded design matrix. Also home to `corrected_pvalue()` (the shared Phipson & Smyth permutation p-value), as the leaf module both `core.py` and `cross_validate.py` can import without coupling — sitting alongside the other pure numerical helper, `zscore_columns()`.
 - **`core.py`** — the `PLS` class. Stateful: takes z-scored arrays, runs `fit()` → `permutation_test()` → `bootstrap()` → `filter_lvs()` in sequence. Stores results as instance attributes.
-- **`cross_validate.py`** — `run_cv()` and `permutation_test_cv()`. Uses `sklearn.PLSRegression` (not the SVD-based `PLS` class) because prediction requires `predict()`. Entirely independent of `core.py`.
+- **`cross_validate.py`** — `run_cv()` and `permutation_test_cv()`. Uses `sklearn.PLSRegression` (not the SVD-based `PLS` class) because prediction requires `predict()`. Independent of `core.py` (the only shared code is `io.corrected_pvalue`).
 - **`plotting.py`** — stateless functions. All take data arrays and an `out_path`, save the figure, return nothing. `meta_colours()` is here too (not in pipeline).
 - **`pipeline.py`** — orchestration only. Calls `io` → `core` → `plotting` in sequence, writes CSVs and `log.txt`. No computation here.
 - **`cli.py`** — argument parsing and validation only. Dispatches to `pipeline.run_pipeline()` or `pipeline.cross_validate_pipeline()`.

@@ -278,6 +278,7 @@ class TestFilterLVs:
         # Manually set permutation results: LV1 significant, LV2 not, LV3 significant
         model.p_values = np.array([0.01, 0.50, 0.03])
         model.significant_lvs = model.p_values < 0.05
+        model._permuted = True
 
         # Manually set bootstrap ratios:
         # LV1: reliable on both sides (|BSR| > 1.96)
@@ -296,6 +297,7 @@ class TestFilterLVs:
                 [1.0, 0.3, 1.5],  # LV3: not reliable (no feature > 1.96)
             ]
         )
+        model._bootstrapped = True
 
         model.filter_lvs()
 

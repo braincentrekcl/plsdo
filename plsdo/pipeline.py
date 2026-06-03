@@ -57,6 +57,20 @@ def _save_csv(data: np.ndarray, path: Path, columns=None, index=None):
     df.to_csv(path, index=index is not None)
 
 
+def _setup_output_dirs(output_dir: Path) -> tuple[Path, Path]:
+    """Create and return the (figures, data) subdirectories of output_dir."""
+    figures_dir = output_dir / "figures"
+    data_dir = output_dir / "data"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return figures_dir, data_dir
+
+
+def _lv_names(n: int) -> list[str]:
+    """Latent-variable column labels: ['LV1', 'LV2', ...]."""
+    return [f"LV{i + 1}" for i in range(n)]
+
+
 def run_pipeline(
     *,
     method: str,
@@ -121,10 +135,7 @@ def run_pipeline(
         are skipped. Defaults to ``VERBOSE_FEATURE_LIMIT`` (100).
     """
     # --- Set up output directory ---
-    figures_dir = output_dir / "figures"
-    data_dir = output_dir / "data"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    data_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir, data_dir = _setup_output_dirs(output_dir)
 
     # --- Parse groups config ---
     demographics_df = load_csv(demographics_path)
@@ -156,9 +167,9 @@ def run_pipeline(
     else:
         y_aligned, demo_aligned = aligned
         X_design, x_feature_names = build_design_matrix(demo_aligned, config)
-        non_ignore = [g for g in config.groups if g.role != "ignore"]
-        if len(non_ignore) == 1:
-            prefix = non_ignore[0].column + "_"
+        active = config.active_groups()
+        if len(active) == 1:
+            prefix = active[0].column + "_"
             x_display_names = [
                 name[len(prefix):] if name.startswith(prefix) else name
                 for name in x_feature_names
@@ -202,35 +213,35 @@ def run_pipeline(
     _save_csv(
         model.s[None, :],
         data_dir / "singular_values.csv",
-        columns=[f"LV{i + 1}" for i in range(len(model.s))],
+        columns=_lv_names(len(model.s)),
     )
     _save_csv(
         model.p_values[None, :],
         data_dir / "p_values.csv",
-        columns=[f"LV{i + 1}" for i in range(len(model.p_values))],
+        columns=_lv_names(len(model.p_values)),
     )
     _save_csv(
         model.u_loadings,
         data_dir / "x_loadings.csv",
-        columns=[f"LV{i + 1}" for i in range(model.u_loadings.shape[1])],
+        columns=_lv_names(model.u_loadings.shape[1]),
         index=x_feature_names,
     )
     _save_csv(
         model.vt_loadings.T,
         data_dir / "y_loadings.csv",
-        columns=[f"LV{i + 1}" for i in range(model.vt_loadings.shape[0])],
+        columns=_lv_names(model.vt_loadings.shape[0]),
         index=y_feature_names,
     )
     _save_csv(
         model.u_bootstrap_ratios,
         data_dir / "x_bootstrap_ratios.csv",
-        columns=[f"LV{i + 1}" for i in range(model.u_bootstrap_ratios.shape[1])],
+        columns=_lv_names(model.u_bootstrap_ratios.shape[1]),
         index=x_feature_names,
     )
     _save_csv(
         model.vt_bootstrap_ratios.T,
         data_dir / "y_bootstrap_ratios.csv",
-        columns=[f"LV{i + 1}" for i in range(model.vt_bootstrap_ratios.shape[0])],
+        columns=_lv_names(model.vt_bootstrap_ratios.shape[0]),
         index=y_feature_names,
     )
 
@@ -472,10 +483,7 @@ def cross_validate_pipeline(
     )
 
     # --- Set up output ---
-    figures_dir = output_dir / "figures"
-    data_dir_out = output_dir / "data"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    data_dir_out.mkdir(parents=True, exist_ok=True)
+    figures_dir, data_dir_out = _setup_output_dirs(output_dir)
 
     # --- Load demographics and resolve group target ---
     demographics_df = load_csv(demographics_path)
@@ -484,16 +492,12 @@ def cross_validate_pipeline(
         config = parse_groups_config(groups_path, demographics_df=demographics_df)
         if config.subject_id:
             subject_id = config.subject_id
-        non_ignore = [g for g in config.groups if g.role != "ignore"]
-        if not non_ignore:
+        target = config.x_axis_group()
+        if target is None:
             raise ValueError(
                 f"Groups config {groups_path} has no non-ignore columns; "
                 f"cannot derive a CV classification target."
             )
-        target = next(
-            (g for g in non_ignore if g.role == "x_axis"),
-            non_ignore[0],
-        )
         group_col = target.column
         logger.info(
             "Using '%s' (role=%s) as CV classification target from %s",
@@ -721,12 +725,9 @@ def _plot_verbose(
 
     # Raw distribution plots — z-scored features by group
     if config is not None:
-        group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
-        if group_cols_to_use:
-            x_axis_col = next(
-                (g.column for g in group_cols_to_use if g.role == "x_axis"),
-                group_cols_to_use[0].column,
-            )
+        x_axis = config.x_axis_group()
+        if x_axis is not None:
+            x_axis_col = x_axis.column
             group_labels = demo_aligned[x_axis_col].values
             plot_raw_distributions(
                 data=Y,
@@ -759,18 +760,12 @@ def _plot_score_boxstrips(
     dpi,
 ):
     """Build long-format score dataframes and produce box/strip plots."""
-    group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
+    group_cols_to_use = config.active_groups()
     if not group_cols_to_use:
         return
 
-    x_axis_col = next(
-        (g.column for g in group_cols_to_use if g.role == "x_axis"),
-        group_cols_to_use[0].column,
-    )
-    hue_col = next(
-        (g.column for g in group_cols_to_use if g.role == "hue"),
-        None,
-    )
+    x_axis_col = config.x_axis_group().column
+    hue_col = config.hue_column()
 
     final_lv_indices = np.where(model.final_lvs)[0]
     group_col_names = [g.column for g in group_cols_to_use]
@@ -826,9 +821,9 @@ def _plot_score_scatters(
     dpi,
 ):
     """Produce score scatter plots (correlational PLS only)."""
-    group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
+    # Colour by the x-axis or hue group (scatter-specific: either role works).
     hue_col = next(
-        (g.column for g in group_cols_to_use if g.role in ("x_axis", "hue")),
+        (g.column for g in config.active_groups() if g.role in ("x_axis", "hue")),
         None,
     )
     final_lv_indices = np.where(model.final_lvs)[0]
