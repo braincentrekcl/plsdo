@@ -66,11 +66,14 @@ Practical consequences: prefer stdlib over third-party where reasonable (argpars
 
 The `plsdo` name is claimed on PyPI. Releases are automated via `.github/workflows/release.yml` and triggered by pushing a version tag.
 
+The version is single-sourced: `pyproject.toml` reads it dynamically from `plsdo/__init__.py` via `[tool.hatch.version]`. `CITATION.cff` carries an independent copy, kept in step by `scripts/check_version.py` (run in CI).
+
 **Steps:**
-1. Bump `version` in `pyproject.toml` and `CITATION.cff` (keep `date-released` in sync).
-2. Commit: `chore: bump version to vX.Y.Z`
-3. Tag and push: `git tag vX.Y.Z && git push origin main --tags`
-4. The release workflow runs tests, builds, publishes to PyPI, and creates a GitHub release automatically.
+1. Bump `__version__` in `plsdo/__init__.py` and `version` in `CITATION.cff` (keep `date-released` in sync). Do **not** edit `pyproject.toml` — it derives the version automatically.
+2. Run `python scripts/check_version.py` to confirm the two agree.
+3. Commit: `chore: bump version to vX.Y.Z`
+4. Tag and push: `git tag vX.Y.Z && git push origin main --tags`
+5. The release workflow runs tests, builds, publishes to PyPI, and creates a GitHub release automatically.
 
 **Before first stable release:**
 - Update `README.md` and `docs/usage.md` installation instructions from `git clone` to `pip install plsdo`.

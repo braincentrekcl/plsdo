@@ -1,6 +1,6 @@
 [project]
 name = "plsdo"
-version = "0.1.1"
+dynamic = ["version"]
 description = "PLS covariance analysis with statistical testing and visualisation"
 readme = "README.md"
 keywords = ["PLS", "multivariate", "statistics", "analysis"]
@@ -52,6 +52,9 @@ Issues = "https://github.com/braincentrekcl/plsdo/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "plsdo/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
