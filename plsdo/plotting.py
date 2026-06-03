@@ -212,6 +212,79 @@ def plot_loadings(
     plt.close(fig)
 
 
+# Shared styling for the box+strip overlay used by both the score and the
+# raw-distribution facet plots. Kept in one place so the two stay identical.
+_BOXPLOT_STYLE = dict(
+    saturation=1.0,
+    boxprops={"edgecolor": "gray", "alpha": 0.5},
+    medianprops={"color": "k", "ls": "--", "lw": 1},
+    whiskerprops={"color": "gray", "ls": "-", "lw": 1},
+    showfliers=False,
+)
+_STRIPPLOT_STYLE = dict(
+    size=5,
+    jitter=True,
+    linewidth=1,
+    edgecolor=".5",
+    legend=False,
+)
+
+
+def _box_strip_facet(
+    data: pd.DataFrame,
+    *,
+    x: str,
+    y: str,
+    hue: str,
+    order: list,
+    hue_order: list,
+    palette: dict,
+    col: str,
+    out_path: Path,
+    dpi: int,
+    box_dodge,
+    strip_dodge,
+    col_wrap: Optional[int] = None,
+    row: Optional[str] = None,
+    rotate_xticklabels: bool = False,
+) -> None:
+    """Render a box + strip overlay on a per-facet FacetGrid and save it.
+
+    Both seaborn layers receive the same ``palette`` dict and ``hue_order`` so
+    box and strip colours always agree (guarded by the palette-consistency
+    regression tests in test_plotting.py). Shared by ``plot_scores_boxstrip``
+    and ``plot_raw_distributions``.
+    """
+    grid_kwargs = {}
+    if col_wrap is not None:
+        grid_kwargs["col_wrap"] = col_wrap
+    elif row is not None:
+        grid_kwargs["row"] = row
+
+    g = sns.FacetGrid(data=data, col=col, sharex=False, **grid_kwargs)
+    g.map_dataframe(
+        sns.boxplot,
+        x=x, y=y, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, dodge=box_dodge,
+        **_BOXPLOT_STYLE,
+    )
+    g.map_dataframe(
+        sns.stripplot,
+        x=x, y=y, hue=hue,
+        order=order, hue_order=hue_order,
+        palette=palette, dodge=strip_dodge,
+        **_STRIPPLOT_STYLE,
+    )
+    if rotate_xticklabels:
+        for ax in g.axes.flat:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    g.add_legend()
+    plt.tight_layout()
+    g.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close()
+
+
 def plot_scores_boxstrip(
     scores_df: pd.DataFrame,
     x_col: str,
@@ -259,47 +332,26 @@ def plot_scores_boxstrip(
     palette = dict(zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order))))
     needs_dodge = hue != x_col
 
-    kwargs = {}
-    if col_wrap is not None:
-        kwargs["col_wrap"] = col_wrap
-    elif row_col is not None:
-        kwargs["row"] = row_col
-    else:
-        kwargs["col_wrap"] = 2
+    if col_wrap is None and row_col is None:
+        col_wrap = 2
 
-    g = sns.FacetGrid(
-        data=scores_df,
+    _box_strip_facet(
+        scores_df,
+        x=x_col,
+        y=y_col,
+        hue=hue,
+        order=order,
+        hue_order=hue_order,
+        palette=palette,
         col=col_col,
-        sharex=False,
-        **kwargs,
+        out_path=out_path,
+        dpi=dpi,
+        box_dodge=needs_dodge,
+        strip_dodge=needs_dodge,
+        col_wrap=col_wrap,
+        row=row_col,
+        rotate_xticklabels=True,
     )
-    g.map_dataframe(
-        sns.boxplot,
-        x=x_col, y=y_col, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, saturation=1.0, dodge=needs_dodge,
-        boxprops={"edgecolor": "gray", "alpha": 0.5},
-        medianprops={"color": "k", "ls": "--", "lw": 1},
-        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
-        showfliers=False,
-    )
-    g.map_dataframe(
-        sns.stripplot,
-        x=x_col, y=y_col, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, dodge=needs_dodge,
-        size=5, jitter=True,
-        linewidth=1, edgecolor=".5",
-        legend=False,
-    )
-    for ax in g.axes.flat:
-        ax.set_xticklabels(
-            ax.get_xticklabels(), rotation=45, ha="right",
-        )
-    g.add_legend()
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
 
 
 def plot_scores_scatter(
@@ -579,35 +631,21 @@ def plot_raw_distributions(
     n_features = len(feature_names)
     col_wrap = min(4, n_features)
 
-    g = sns.FacetGrid(
-        data=long_df,
-        col="feature",
-        col_wrap=col_wrap,
-        sharex=False,
-    )
-    g.map_dataframe(
-        sns.boxplot,
-        x=group_col, y="z-score", hue=group_col,
-        order=order, hue_order=order,
-        palette=palette, saturation=1.0,
-        boxprops={"edgecolor": "gray", "alpha": 0.5},
-        medianprops={"color": "k", "ls": "--", "lw": 1},
-        whiskerprops={"color": "gray", "ls": "-", "lw": 1},
-        showfliers=False,
-    )
-    g.map_dataframe(
-        sns.stripplot,
-        x=group_col, y="z-score", hue=group_col,
-        order=order, hue_order=order,
+    _box_strip_facet(
+        long_df,
+        x=group_col,
+        y="z-score",
+        hue=group_col,
+        order=order,
+        hue_order=order,
         palette=palette,
-        size=5, jitter=True, dodge=True,
-        linewidth=1, edgecolor=".5",
-        legend=False,
+        col="feature",
+        out_path=out_path,
+        dpi=dpi,
+        box_dodge="auto",
+        strip_dodge=True,
+        col_wrap=col_wrap,
     )
-    g.add_legend()
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
 
 
 def plot_scree(
