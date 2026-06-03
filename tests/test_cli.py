@@ -227,12 +227,14 @@ class TestLogContents:
 
 
 def test_version_flag(capsys):
+    from plsdo import __version__
+
     with pytest.raises(SystemExit) as exc_info:
         pls_main(["--version"])
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
     assert "plsdo" in captured.out
-    assert "0.1.0" in captured.out
+    assert __version__ in captured.out
 
 
 class TestCrossValidate:
