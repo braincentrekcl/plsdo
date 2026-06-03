@@ -1,6 +1,7 @@
 """Tests for pipeline helpers."""
 
 import logging
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from plsdo.pipeline import _plot_verbose, run_pipeline
+from plsdo.pipeline import _plot_verbose, cross_validate_pipeline, run_pipeline
 from plsdo.plotting import VERBOSE_FEATURE_LIMIT
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -175,3 +176,141 @@ class TestMultiIndexSubjectScores:
         assert "subject_id" in scores.columns
         # run_id should NOT be present
         assert "run_id" not in scores.columns
+
+
+DATA_CSVS = [
+    "singular_values.csv",
+    "p_values.csv",
+    "x_loadings.csv",
+    "y_loadings.csv",
+    "x_bootstrap_ratios.csv",
+    "y_bootstrap_ratios.csv",
+    "subject_scores.csv",
+]
+
+
+def _run(method, out):
+    """Run a full pipeline on the synthetic data for the given method."""
+    kwargs = dict(
+        method=method,
+        y_path=DATA_DIR / "behaviour.csv",
+        demographics_path=DATA_DIR / "demographics.csv",
+        output_dir=out,
+        group_col="group",
+        subject_id="subject_id",
+        n_perms=50,
+        n_bootstraps=50,
+        seed=42,
+        img_format="png",
+        dpi=72,
+    )
+    if method == "correlational":
+        kwargs["x_path"] = DATA_DIR / "brain.csv"
+    run_pipeline(**kwargs)
+
+
+class TestRunPipelineOutputs:
+    """End-to-end: a full run writes the expected CSVs, figures, and log."""
+
+    @pytest.fixture(params=["correlational", "discriminatory"])
+    def run_out(self, request, tmp_path):
+        out = tmp_path / "output"
+        _run(request.param, out)
+        return request.param, out
+
+    def test_all_data_csvs_written(self, run_out):
+        _method, out = run_out
+        data = out / "data"
+        for name in DATA_CSVS:
+            assert (data / name).exists(), f"missing {name}"
+
+    def test_log_written_with_version_and_params(self, run_out):
+        from plsdo import __version__
+
+        method, out = run_out
+        log = (out / "log.txt").read_text()
+        assert "PLS analysis log" in log
+        assert __version__ in log
+        assert f"method: {method}" in log
+
+    def test_core_figures_produced(self, run_out):
+        _method, out = run_out
+        figs = out / "figures"
+        assert (figs / "cross_correlation.png").exists()
+        assert (figs / "permutation_test.png").exists()
+
+    def test_singular_values_and_pvalues_schema(self, run_out):
+        _method, out = run_out
+        sv = pd.read_csv(out / "data" / "singular_values.csv")
+        pv = pd.read_csv(out / "data" / "p_values.csv")
+        # One row of values; columns are LV labels and identical across both.
+        assert len(sv) == 1 and len(pv) == 1
+        assert all(re.fullmatch(r"LV\d+", c) for c in sv.columns)
+        assert list(sv.columns) == list(pv.columns)
+        # p-values are valid probabilities.
+        assert ((pv.iloc[0] >= 0.0) & (pv.iloc[0] <= 1.0)).all()
+
+    def test_loadings_and_bsr_dimensions(self, run_out):
+        method, out = run_out
+        x_load = pd.read_csv(out / "data" / "x_loadings.csv", index_col=0)
+        y_load = pd.read_csv(out / "data" / "y_loadings.csv", index_col=0)
+        # Rows index features; correlational X has 5 brain features,
+        # discriminatory X has 3 group dummies; Y always has 4 behaviour features.
+        assert len(y_load.index) == 4
+        assert len(x_load.index) == (5 if method == "correlational" else 3)
+        # Bootstrap-ratio matrices match the loading matrices.
+        x_bsr = pd.read_csv(out / "data" / "x_bootstrap_ratios.csv", index_col=0)
+        y_bsr = pd.read_csv(out / "data" / "y_bootstrap_ratios.csv", index_col=0)
+        assert x_bsr.shape == x_load.shape
+        assert y_bsr.shape == y_load.shape
+
+    def test_subject_scores_one_row_per_subject_with_paired_lvs(self, run_out):
+        _method, out = run_out
+        scores = pd.read_csv(out / "data" / "subject_scores.csv")
+        assert len(scores) == 12
+        # filter_lvs feeds the score CSV: surviving LVs appear as paired X_/Y_ columns.
+        x_cols = [c for c in scores.columns if c.startswith("X_")]
+        y_cols = [c for c in scores.columns if c.startswith("Y_")]
+        assert len(x_cols) == len(y_cols)
+
+
+class TestCrossValidatePipelineOutputs:
+    """End-to-end: cross_validate_pipeline writes its CSVs, figures, and log."""
+
+    @pytest.fixture
+    def cv_out(self, tmp_path):
+        out = tmp_path / "cv"
+        cross_validate_pipeline(
+            y_path=DATA_DIR / "behaviour.csv",
+            demographics_path=DATA_DIR / "demographics.csv",
+            output_dir=out,
+            group_col="group",
+            subject_id="subject_id",
+            n_folds=2,
+            n_repeats=3,
+            n_permutations=20,
+            seed=42,
+            img_format="png",
+            dpi=72,
+        )
+        return out
+
+    def test_data_csvs_written(self, cv_out):
+        data = cv_out / "data"
+        assert (data / "cv_fold_results.csv").exists()
+        assert (data / "cv_permutation_accuracies.csv").exists()
+
+    def test_figures_produced(self, cv_out):
+        figs = cv_out / "figures"
+        assert (figs / "cv_fold_accuracy.png").exists()
+        assert (figs / "cv_permutation_test.png").exists()
+        assert (figs / "cv_confusion_matrix.png").exists()
+
+    def test_log_records_cv_run(self, cv_out):
+        log = (cv_out / "log.txt").read_text()
+        assert "cross-validate" in log
+        assert "mean_accuracy" in log
+
+    def test_permutation_accuracies_count(self, cv_out):
+        null = pd.read_csv(cv_out / "data" / "cv_permutation_accuracies.csv")
+        assert len(null) == 20

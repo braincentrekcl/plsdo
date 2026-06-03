@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from plsdo.cross_validate import run_cv, permutation_test_cv
 
 
@@ -71,3 +72,48 @@ class TestPermutationTestCV:
         assert 0.0 <= result["p_value"] <= 1.0
         assert "null_accuracies" in result
         assert len(result["null_accuracies"]) == 50
+
+    def test_p_value_at_least_one_over_n_plus_one(self):
+        """Phipson-Smyth correction: p can never be 0, even for a huge observed."""
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((40, 5))
+        labels = np.array([0] * 20 + [1] * 20)
+
+        result = permutation_test_cv(
+            X,
+            labels,
+            observed_accuracy=1.0,  # nothing in the null can exceed this
+            n_splits=5,
+            n_repeats=1,
+            n_components=1,
+            n_permutations=20,
+            seed=42,
+        )
+        assert result["p_value"] == pytest.approx(1 / (20 + 1))
+
+
+class TestMulticlass:
+    def test_confusion_matrix_shape_and_rows_normalised(self):
+        """Three groups -> 3x3 matrix; rows are 'true'-normalised so sum to 1."""
+        rng = np.random.default_rng(1)
+        X = np.vstack(
+            [
+                rng.standard_normal((12, 5)),
+                rng.standard_normal((12, 5)) + 8,
+                rng.standard_normal((12, 5)) - 8,
+            ]
+        )
+        labels = np.array([0] * 12 + [1] * 12 + [2] * 12)
+
+        results = run_cv(X, labels, n_splits=3, n_repeats=4, n_components=2, seed=42)
+        cm = results["confusion_matrix"]
+        assert cm.shape == (3, 3)
+        np.testing.assert_allclose(cm.sum(axis=1), np.ones(3))
+
+    def test_predicted_labels_within_group_range(self):
+        rng = np.random.default_rng(2)
+        X = rng.standard_normal((30, 5))
+        labels = np.array([0] * 10 + [1] * 10 + [2] * 10)
+
+        results = run_cv(X, labels, n_splits=5, n_repeats=2, n_components=2, seed=42)
+        assert set(results["pred_labels"]).issubset({0, 1, 2})
