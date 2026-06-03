@@ -9,6 +9,7 @@ class TestRunValidation:
         with pytest.raises(SystemExit) as exc_info:
             pls_main([])
         assert exc_info.value.code != 0
+        assert "usage: plsdo" in capsys.readouterr().out
 
     def test_correlational_without_x_errors(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
@@ -337,7 +338,7 @@ class TestCrossValidate:
         assert "group_col: group" in log
         assert "groups:" in log
 
-    def test_group_col_and_groups_mutually_exclusive(self, data_dir, tmp_path):
+    def test_group_col_and_groups_mutually_exclusive(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
@@ -355,6 +356,9 @@ class TestCrossValidate:
                 ]
             )
         assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        # argparse enforces the mutual exclusion structurally (matches the run side).
+        assert "not allowed with" in captured.err.lower()
 
     def test_all_plots_creates_convergence_figure(self, data_dir, tmp_path):
         out = tmp_path / "cv_allplots"

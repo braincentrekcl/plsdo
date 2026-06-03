@@ -142,6 +142,10 @@ def pls_main(argv=None):
         help="Cross-validate discriminatory PLS model",
         parents=[common],
         allow_abbrev=False,
+        epilog=(
+            "For --groups, the column with role: x_axis is used as the "
+            "classification target."
+        ),
     )
     cv_parser.add_argument(
         "--n-folds", default=5, type=int, help="Number of CV folds (default: 5)"
