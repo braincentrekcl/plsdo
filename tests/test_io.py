@@ -503,3 +503,53 @@ class TestBuildDesignMatrix:
         )
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (2, 2)  # only group, not cage
+
+
+class TestGroupConfigRoleQueries:
+    def test_active_groups_excludes_ignore(self):
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="cage", role="ignore"),
+                GroupSpec(column="sex", role="hue"),
+            ]
+        )
+        cols = [g.column for g in config.active_groups()]
+        assert cols == ["group", "sex"]
+
+    def test_x_axis_group_prefers_explicit_role(self):
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="sex", role="hue"),
+                GroupSpec(column="group", role="x_axis"),
+            ]
+        )
+        assert config.x_axis_group().column == "group"
+
+    def test_x_axis_group_falls_back_to_first_active(self):
+        """No explicit x_axis role -> first non-ignore group."""
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="cage", role="ignore"),
+                GroupSpec(column="sex", role="hue"),
+                GroupSpec(column="batch", role="hue"),
+            ]
+        )
+        assert config.x_axis_group().column == "sex"
+
+    def test_x_axis_group_none_when_all_ignored(self):
+        config = GroupConfig(groups=[GroupSpec(column="cage", role="ignore")])
+        assert config.x_axis_group() is None
+
+    def test_hue_column_returns_hue_role(self):
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="sex", role="hue"),
+            ]
+        )
+        assert config.hue_column() == "sex"
+
+    def test_hue_column_none_when_absent(self):
+        config = GroupConfig(groups=[GroupSpec(column="group", role="x_axis")])
+        assert config.hue_column() is None

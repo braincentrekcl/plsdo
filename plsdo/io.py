@@ -320,6 +320,24 @@ class GroupConfig:
             groups=[GroupSpec(column=group_col, role="x_axis")],
         )
 
+    def active_groups(self) -> list[GroupSpec]:
+        """Group specs that participate in the analysis (role != 'ignore')."""
+        return [g for g in self.groups if g.role != "ignore"]
+
+    def x_axis_group(self) -> Optional[GroupSpec]:
+        """The group plotted on the x-axis: the explicit 'x_axis' role if any,
+        else the first active group. None if no group is active."""
+        active = self.active_groups()
+        if not active:
+            return None
+        return next((g for g in active if g.role == "x_axis"), active[0])
+
+    def hue_column(self) -> Optional[str]:
+        """Column name of the group with role 'hue', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "hue"), None
+        )
+
 
 def parse_groups_config(
     yaml_path: Path,

@@ -156,9 +156,9 @@ def run_pipeline(
     else:
         y_aligned, demo_aligned = aligned
         X_design, x_feature_names = build_design_matrix(demo_aligned, config)
-        non_ignore = [g for g in config.groups if g.role != "ignore"]
-        if len(non_ignore) == 1:
-            prefix = non_ignore[0].column + "_"
+        active = config.active_groups()
+        if len(active) == 1:
+            prefix = active[0].column + "_"
             x_display_names = [
                 name[len(prefix):] if name.startswith(prefix) else name
                 for name in x_feature_names
@@ -484,16 +484,12 @@ def cross_validate_pipeline(
         config = parse_groups_config(groups_path, demographics_df=demographics_df)
         if config.subject_id:
             subject_id = config.subject_id
-        non_ignore = [g for g in config.groups if g.role != "ignore"]
-        if not non_ignore:
+        target = config.x_axis_group()
+        if target is None:
             raise ValueError(
                 f"Groups config {groups_path} has no non-ignore columns; "
                 f"cannot derive a CV classification target."
             )
-        target = next(
-            (g for g in non_ignore if g.role == "x_axis"),
-            non_ignore[0],
-        )
         group_col = target.column
         logger.info(
             "Using '%s' (role=%s) as CV classification target from %s",
@@ -721,12 +717,9 @@ def _plot_verbose(
 
     # Raw distribution plots — z-scored features by group
     if config is not None:
-        group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
-        if group_cols_to_use:
-            x_axis_col = next(
-                (g.column for g in group_cols_to_use if g.role == "x_axis"),
-                group_cols_to_use[0].column,
-            )
+        x_axis = config.x_axis_group()
+        if x_axis is not None:
+            x_axis_col = x_axis.column
             group_labels = demo_aligned[x_axis_col].values
             plot_raw_distributions(
                 data=Y,
@@ -759,18 +752,12 @@ def _plot_score_boxstrips(
     dpi,
 ):
     """Build long-format score dataframes and produce box/strip plots."""
-    group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
+    group_cols_to_use = config.active_groups()
     if not group_cols_to_use:
         return
 
-    x_axis_col = next(
-        (g.column for g in group_cols_to_use if g.role == "x_axis"),
-        group_cols_to_use[0].column,
-    )
-    hue_col = next(
-        (g.column for g in group_cols_to_use if g.role == "hue"),
-        None,
-    )
+    x_axis_col = config.x_axis_group().column
+    hue_col = config.hue_column()
 
     final_lv_indices = np.where(model.final_lvs)[0]
     group_col_names = [g.column for g in group_cols_to_use]
@@ -826,9 +813,9 @@ def _plot_score_scatters(
     dpi,
 ):
     """Produce score scatter plots (correlational PLS only)."""
-    group_cols_to_use = [g for g in config.groups if g.role != "ignore"]
+    # Colour by the x-axis or hue group (scatter-specific: either role works).
     hue_col = next(
-        (g.column for g in group_cols_to_use if g.role in ("x_axis", "hue")),
+        (g.column for g in config.active_groups() if g.role in ("x_axis", "hue")),
         None,
     )
     final_lv_indices = np.where(model.final_lvs)[0]
