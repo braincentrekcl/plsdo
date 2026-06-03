@@ -38,6 +38,7 @@ cv = [
 ]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff",
     "scikit-learn",
 ]
@@ -61,3 +62,10 @@ testpaths = ["tests"]
 filterwarnings = [
     "error::UserWarning:seaborn",
 ]
+
+[tool.coverage.run]
+source = ["plsdo"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95
