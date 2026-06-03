@@ -45,24 +45,17 @@ def figure_size(
     return (width, height)
 
 
-def _finalise(
-    target: "plt.Figure | sns.FacetGrid",
-    out_path: Path,
-    dpi: int,
-    close: bool = True,
-) -> None:
-    """Tidy layout, save, and (by default) close a Figure or seaborn grid.
+def _finalise(target: "plt.Figure | sns.FacetGrid", out_path: Path, dpi: int) -> None:
+    """Tidy layout, save, and close a Figure or seaborn grid.
 
     Centralises the ``transparent=False`` + ``dpi`` save convention used by
     every plot. ``target`` is a matplotlib Figure or a seaborn FacetGrid;
     ``tight_layout`` is called on it directly rather than via pyplot global
-    state. Pass ``close=False`` to leave the figure open (e.g. when the
-    caller returns it for inspection).
+    state.
     """
     target.tight_layout()
     target.savefig(out_path, transparent=False, dpi=dpi)
-    if close:
-        plt.close(target if isinstance(target, plt.Figure) else target.figure)
+    plt.close(target if isinstance(target, plt.Figure) else target.figure)
 
 
 def _categorical_palette(levels: "list | np.ndarray") -> dict:
@@ -81,8 +74,7 @@ def plot_heatmap(
     row_colors: Optional[list] = None,
     col_colors: Optional[list] = None,
     dpi: int = 300,
-    return_fig: bool = False,
-) -> Optional[tuple]:
+) -> None:
     """Plot a heatmap with diverging colour scale.
 
     Reference: correlational_pls.ipynb heatmapplot function.
@@ -98,8 +90,6 @@ def plot_heatmap(
     row_colors, col_colors : list, optional
         Colour bars for row/column groupings.
     dpi : int
-    return_fig : bool
-        If True, return (fig, ax) instead of closing.
     """
     n_rows, n_cols = data.shape
     figsize = figure_size(n_rows, n_cols)
@@ -129,11 +119,7 @@ def plot_heatmap(
     )
     if subtitle:
         fig.suptitle(subtitle)
-    _finalise(fig, out_path, dpi, close=not return_fig)
-
-    if return_fig:
-        return fig, ax
-    return None
+    _finalise(fig, out_path, dpi)
 
 
 def plot_permutation(

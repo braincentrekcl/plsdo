@@ -55,17 +55,22 @@ class TestPlotHeatmap:
         assert out.exists()
         assert out.stat().st_size > 0
 
-    def test_annotations_suppressed_for_large_data(self, tmp_output):
+    def test_annotations_suppressed_for_large_data(self, tmp_output, monkeypatch):
+        from plsdo import plotting as plotting_mod
+
+        # Keep the figure open after the plot function so we can inspect it.
+        monkeypatch.setattr(plotting_mod.plt, "close", lambda *a, **kw: None)
+
         data = np.random.default_rng(0).standard_normal((35, 35))
         out = tmp_output / "big_heatmap.svg"
-        fig, ax = plot_heatmap(
+        plot_heatmap(
             data,
             v=1.0,
             xticklabels=[f"x{i}" for i in range(35)],
             yticklabels=[f"y{i}" for i in range(35)],
             out_path=out,
-            return_fig=True,
         )
+        ax = plt.gcf().axes[0]
         # Check no annotation text objects
         texts = [
             c
@@ -81,7 +86,7 @@ class TestPlotHeatmap:
             and t.get_text().replace("-", "").replace(".", "").isdigit()
         )
         assert annotation_count == 0
-        plt.close(fig)
+        plt.close("all")
 
 
 class TestPlotPermutation:
