@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from plsdo.cli import pls_main
 
@@ -227,14 +229,19 @@ class TestLogContents:
 
 
 def test_version_flag(capsys):
+    # Tests the CLI wiring, not the version *value* (which check_version.py owns):
+    # --version must exit 0 and emit "plsdo <real version>", catching a hardcoded
+    # or empty version string without going stale on a literal.
     from plsdo import __version__
 
     with pytest.raises(SystemExit) as exc_info:
         pls_main(["--version"])
     assert exc_info.value.code == 0
-    captured = capsys.readouterr()
-    assert "plsdo" in captured.out
-    assert __version__ in captured.out
+    out = capsys.readouterr().out.strip()
+    # Reports the package version (catches a hardcoded/decoupled version)...
+    assert out == f"plsdo {__version__}"
+    # ...and that version is well-formed (guard on the CLI output, not the import).
+    assert re.match(r"^plsdo \d+\.\d+", out)
 
 
 class TestCrossValidate:
