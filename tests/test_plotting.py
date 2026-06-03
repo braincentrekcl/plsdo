@@ -70,7 +70,10 @@ class TestPlotHeatmap:
             yticklabels=[f"y{i}" for i in range(35)],
             out_path=out,
         )
-        ax = plt.gcf().axes[0]
+        # plt.subplots creates the heatmap axes first; seaborn appends the
+        # colourbar axes after, so axes[0] is the heatmap (not the colourbar).
+        fig = plt.gcf()
+        ax = fig.axes[0]
         # Check no annotation text objects
         texts = [
             c
