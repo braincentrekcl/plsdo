@@ -37,7 +37,7 @@ The package has a strict separation of concerns across five modules:
 
 **LV filtering is two-stage.** `filter_lvs()` keeps LVs that are (1) significant by permutation (p < 0.05) and (2) have at least one feature with |bootstrap ratio| > 1.96 on *both* the X and Y sides. Result is a boolean `final_lvs` mask.
 
-**CV flips X and Y.** `cross_validate.py` uses Y (continuous data) as the predictor and dummy-coded groups as the target, so `pls.predict()` gives predicted group scores. This is the opposite convention from `plsdo run`.
+**CV flips X and Y.** `cross_validate.py` uses Y (continuous data) as the predictor and dummy-coded groups as the target, so `pls.predict()` gives predicted group scores. This is the opposite convention from `plsdo discriminatory`.
 
 ## Design philosophy
 
