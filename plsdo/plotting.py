@@ -45,6 +45,23 @@ def figure_size(
     return (width, height)
 
 
+def _finalise(target, out_path: Path, dpi: int) -> None:
+    """Tidy layout, save, and close a Figure or seaborn grid.
+
+    Centralises the ``transparent=False`` + ``dpi`` save convention used by
+    every plot. ``target`` is a matplotlib Figure or a seaborn FacetGrid.
+    """
+    plt.tight_layout()
+    target.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(target if isinstance(target, plt.Figure) else target.figure)
+
+
+def _categorical_palette(levels) -> dict:
+    """Map ordered category levels to stable Set2 colours (level -> colour)."""
+    levels = list(levels)
+    return dict(zip(levels, sns.color_palette("Set2", n_colors=len(levels))))
+
+
 def plot_heatmap(
     data: np.ndarray,
     v: float,
@@ -155,9 +172,7 @@ def plot_permutation(
 
     fig.legend(["Observed"], loc="upper right")
     fig.suptitle("Singular value vs null distribution", fontsize=12)
-    fig.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_loadings(
@@ -207,9 +222,7 @@ def plot_loadings(
         ecolor="red",
     )
     ax.set_title(f"Loadings for {lv_name}")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 # Shared styling for the box+strip overlay used by both the score and the
@@ -280,9 +293,7 @@ def _box_strip_facet(
         for ax in g.axes.flat:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     g.add_legend()
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
+    _finalise(g, out_path, dpi)
 
 
 def plot_scores_boxstrip(
@@ -329,7 +340,7 @@ def plot_scores_boxstrip(
         if hasattr(scores_df[hue], "cat")
         else sorted(scores_df[hue].unique())
     )
-    palette = dict(zip(hue_order, sns.color_palette("Set2", n_colors=len(hue_order))))
+    palette = _categorical_palette(hue_order)
     needs_dodge = hue != x_col
 
     if col_wrap is None and row_col is None:
@@ -394,9 +405,7 @@ def plot_scores_scatter(
     )
     g.set_axis_labels(x_var="X score", y_var="Y score")
     g.figure.suptitle(f"Score scatter for {lv_name}", y=1.02)
-    plt.tight_layout()
-    g.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close()
+    _finalise(g, out_path, dpi)
 
 
 def plot_cv_accuracy(
@@ -428,9 +437,7 @@ def plot_cv_accuracy(
     ax.set_ylabel("Count")
     ax.set_title("Per-fold accuracy distribution")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_cv_permutation(
@@ -463,9 +470,7 @@ def plot_cv_permutation(
     ax.set_ylabel("Count")
     ax.set_title(f"Permutation test (p = {p_value:.4f})")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def meta_colours(
@@ -495,12 +500,7 @@ def meta_colours(
         )
         return None
     colour_map = dict(zip(meta_df["feature"], meta_df["category"]))
-    palette = dict(
-        zip(
-            meta_df["category"].unique(),
-            sns.color_palette("Set2", n_colors=meta_df["category"].nunique()),
-        )
-    )
+    palette = _categorical_palette(meta_df["category"].unique())
     return [palette.get(colour_map.get(f), "steelblue") for f in feature_names]
 
 
@@ -627,7 +627,7 @@ def plot_raw_distributions(
     )
 
     order = sorted(long_df[group_col].unique())
-    palette = dict(zip(order, sns.color_palette("Set2", n_colors=len(order))))
+    palette = _categorical_palette(order)
     n_features = len(feature_names)
     col_wrap = min(4, n_features)
 
@@ -685,9 +685,7 @@ def plot_scree(
         Patch(facecolor="lightgray", label="p \u2265 0.05"),
     ]
     ax.legend(handles=legend_elements, loc="upper right")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_cv_convergence(
@@ -734,9 +732,7 @@ def plot_cv_convergence(
     ax.set_ylabel("Cumulative mean accuracy")
     ax.set_title("Convergence of CV accuracy estimate with increasing repeats")
     ax.legend()
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
 
 
 def plot_confusion_matrix(
@@ -760,6 +756,4 @@ def plot_confusion_matrix(
     disp.plot(ax=ax, cmap="Blues", values_format=".0%")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     ax.set_title(f"CV confusion matrix\nAccuracy: {mean_accuracy:.1%}")
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(fig)
+    _finalise(fig, out_path, dpi)
