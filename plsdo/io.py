@@ -288,7 +288,9 @@ def zscore_columns(arr: np.ndarray) -> np.ndarray:
     return zscore(arr, axis=0, ddof=0)
 
 
-def corrected_pvalue(observed, null, axis: int = -1):
+def corrected_pvalue(
+    observed: "float | np.ndarray", null: np.ndarray, axis: int = -1
+) -> "float | np.ndarray":
     """Permutation p-value with the Phipson & Smyth (2010) +1 correction.
 
     Computes ``(#{null >= observed} + 1) / (n_permutations + 1)``. The +1 in
@@ -299,11 +301,12 @@ def corrected_pvalue(observed, null, axis: int = -1):
     Parameters
     ----------
     observed : float or ndarray
-        Observed statistic(s).
+        Observed statistic(s). May have leading axes that broadcast against
+        ``null`` once the permutation ``axis`` is removed.
     null : ndarray
-        Null distribution. ``axis`` holds the permutation replicates; any
-        leading axes must broadcast against ``observed`` (e.g. one row of
-        permuted singular values per latent variable).
+        Null distribution. ``axis`` indexes the permutation replicates; any
+        remaining axes must align with ``observed`` (e.g. ``observed`` shape
+        ``(n_lvs,)`` against ``null`` shape ``(n_lvs, n_perms)`` with ``axis=1``).
     axis : int
         Axis of ``null`` holding the permutation replicates (default last).
 

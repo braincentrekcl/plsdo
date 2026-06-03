@@ -45,18 +45,27 @@ def figure_size(
     return (width, height)
 
 
-def _finalise(target, out_path: Path, dpi: int) -> None:
-    """Tidy layout, save, and close a Figure or seaborn grid.
+def _finalise(
+    target: "plt.Figure | sns.FacetGrid",
+    out_path: Path,
+    dpi: int,
+    close: bool = True,
+) -> None:
+    """Tidy layout, save, and (by default) close a Figure or seaborn grid.
 
     Centralises the ``transparent=False`` + ``dpi`` save convention used by
-    every plot. ``target`` is a matplotlib Figure or a seaborn FacetGrid.
+    every plot. ``target`` is a matplotlib Figure or a seaborn FacetGrid;
+    ``tight_layout`` is called on it directly rather than via pyplot global
+    state. Pass ``close=False`` to leave the figure open (e.g. when the
+    caller returns it for inspection).
     """
-    plt.tight_layout()
+    target.tight_layout()
     target.savefig(out_path, transparent=False, dpi=dpi)
-    plt.close(target if isinstance(target, plt.Figure) else target.figure)
+    if close:
+        plt.close(target if isinstance(target, plt.Figure) else target.figure)
 
 
-def _categorical_palette(levels) -> dict:
+def _categorical_palette(levels: "list | np.ndarray") -> dict:
     """Map ordered category levels to stable Set2 colours (level -> colour)."""
     levels = list(levels)
     return dict(zip(levels, sns.color_palette("Set2", n_colors=len(levels))))
@@ -120,12 +129,10 @@ def plot_heatmap(
     )
     if subtitle:
         fig.suptitle(subtitle)
-    plt.tight_layout()
-    fig.savefig(out_path, transparent=False, dpi=dpi)
+    _finalise(fig, out_path, dpi, close=not return_fig)
 
     if return_fig:
         return fig, ax
-    plt.close(fig)
     return None
 
 
@@ -255,8 +262,8 @@ def _box_strip_facet(
     col: str,
     out_path: Path,
     dpi: int,
-    box_dodge,
-    strip_dodge,
+    box_dodge: "bool | str",
+    strip_dodge: "bool | str",
     col_wrap: Optional[int] = None,
     row: Optional[str] = None,
     rotate_xticklabels: bool = False,
@@ -264,9 +271,9 @@ def _box_strip_facet(
     """Render a box + strip overlay on a per-facet FacetGrid and save it.
 
     Both seaborn layers receive the same ``palette`` dict and ``hue_order`` so
-    box and strip colours always agree (guarded by the palette-consistency
-    regression tests in test_plotting.py). Shared by ``plot_scores_boxstrip``
-    and ``plot_raw_distributions``.
+    box and strip colours always agree. Shared by ``plot_scores_boxstrip`` and
+    ``plot_raw_distributions``; the palette-consistency regression tests in
+    test_plotting.py drive this shared colour logic via ``plot_scores_boxstrip``.
     """
     grid_kwargs = {}
     if col_wrap is not None:
