@@ -3,8 +3,7 @@
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
 
-from plsdo.io import zscore_columns
-from plsdo.stats import corrected_pvalue
+from plsdo.io import corrected_pvalue, zscore_columns
 
 
 class PLS:

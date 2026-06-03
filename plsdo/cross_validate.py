@@ -11,7 +11,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
-from plsdo.stats import corrected_pvalue
+from plsdo.io import corrected_pvalue
 
 
 def run_cv(
