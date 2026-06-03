@@ -43,6 +43,8 @@ class PLS:
         self._zscore_x = zscore_x
         self._rng = np.random.default_rng(seed)
         self._fitted = False
+        self._permuted = False
+        self._bootstrapped = False
 
     def fit(self):
         """Run PLS: cross-covariance, SVD, loadings, and subject scores."""
@@ -95,6 +97,7 @@ class PLS:
             self.s, self.permuted_singular_values, axis=1
         )
         self.significant_lvs = self.p_values < 0.05
+        self._permuted = True
 
     def bootstrap(self, n_bootstraps: int = 10000) -> None:
         """Assess reliability of loadings via bootstrap resampling.
@@ -150,6 +153,7 @@ class PLS:
         eps = 1e-12
         self.u_bootstrap_ratios = self.u_loadings / np.maximum(self.u_se, eps)
         self.vt_bootstrap_ratios = self.vt_loadings / np.maximum(self.vt_se, eps)
+        self._bootstrapped = True
 
     def filter_lvs(self, bsr_threshold: float = 1.96) -> None:
         """Filter latent variables by significance and reliability.
@@ -164,9 +168,9 @@ class PLS:
         bsr_threshold : float
             Bootstrap ratio threshold (default 1.96 for 95% CI).
         """
-        if not hasattr(self, "p_values"):
+        if not self._permuted:
             raise RuntimeError("Call .permutation_test() before .filter_lvs().")
-        if not hasattr(self, "u_bootstrap_ratios"):
+        if not self._bootstrapped:
             raise RuntimeError("Call .bootstrap() before .filter_lvs().")
 
         significant = self.p_values < 0.05

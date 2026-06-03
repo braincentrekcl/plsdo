@@ -57,6 +57,20 @@ def _save_csv(data: np.ndarray, path: Path, columns=None, index=None):
     df.to_csv(path, index=index is not None)
 
 
+def _setup_output_dirs(output_dir: Path) -> tuple[Path, Path]:
+    """Create and return the (figures, data) subdirectories of output_dir."""
+    figures_dir = output_dir / "figures"
+    data_dir = output_dir / "data"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return figures_dir, data_dir
+
+
+def _lv_names(n: int) -> list[str]:
+    """Latent-variable column labels: ['LV1', 'LV2', ...]."""
+    return [f"LV{i + 1}" for i in range(n)]
+
+
 def run_pipeline(
     *,
     method: str,
@@ -121,10 +135,7 @@ def run_pipeline(
         are skipped. Defaults to ``VERBOSE_FEATURE_LIMIT`` (100).
     """
     # --- Set up output directory ---
-    figures_dir = output_dir / "figures"
-    data_dir = output_dir / "data"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    data_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir, data_dir = _setup_output_dirs(output_dir)
 
     # --- Parse groups config ---
     demographics_df = load_csv(demographics_path)
@@ -202,35 +213,35 @@ def run_pipeline(
     _save_csv(
         model.s[None, :],
         data_dir / "singular_values.csv",
-        columns=[f"LV{i + 1}" for i in range(len(model.s))],
+        columns=_lv_names(len(model.s)),
     )
     _save_csv(
         model.p_values[None, :],
         data_dir / "p_values.csv",
-        columns=[f"LV{i + 1}" for i in range(len(model.p_values))],
+        columns=_lv_names(len(model.p_values)),
     )
     _save_csv(
         model.u_loadings,
         data_dir / "x_loadings.csv",
-        columns=[f"LV{i + 1}" for i in range(model.u_loadings.shape[1])],
+        columns=_lv_names(model.u_loadings.shape[1]),
         index=x_feature_names,
     )
     _save_csv(
         model.vt_loadings.T,
         data_dir / "y_loadings.csv",
-        columns=[f"LV{i + 1}" for i in range(model.vt_loadings.shape[0])],
+        columns=_lv_names(model.vt_loadings.shape[0]),
         index=y_feature_names,
     )
     _save_csv(
         model.u_bootstrap_ratios,
         data_dir / "x_bootstrap_ratios.csv",
-        columns=[f"LV{i + 1}" for i in range(model.u_bootstrap_ratios.shape[1])],
+        columns=_lv_names(model.u_bootstrap_ratios.shape[1]),
         index=x_feature_names,
     )
     _save_csv(
         model.vt_bootstrap_ratios.T,
         data_dir / "y_bootstrap_ratios.csv",
-        columns=[f"LV{i + 1}" for i in range(model.vt_bootstrap_ratios.shape[0])],
+        columns=_lv_names(model.vt_bootstrap_ratios.shape[0]),
         index=y_feature_names,
     )
 
@@ -472,10 +483,7 @@ def cross_validate_pipeline(
     )
 
     # --- Set up output ---
-    figures_dir = output_dir / "figures"
-    data_dir_out = output_dir / "data"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    data_dir_out.mkdir(parents=True, exist_ok=True)
+    figures_dir, data_dir_out = _setup_output_dirs(output_dir)
 
     # --- Load demographics and resolve group target ---
     demographics_df = load_csv(demographics_path)
