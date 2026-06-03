@@ -22,6 +22,17 @@ def _extract(path: Path, pattern: str) -> str:
     return match.group(1)
 
 
+def compare(package_version: str, citation_version: str) -> str | None:
+    """Return an error message if the two versions disagree, else None."""
+    if package_version != citation_version:
+        return (
+            f"Version mismatch: plsdo/__init__.py is {package_version!r} but "
+            f"CITATION.cff is {citation_version!r}. Update both (and "
+            f"CITATION.cff's date-released) before releasing."
+        )
+    return None
+
+
 def main() -> None:
     package_version = _extract(
         ROOT / "plsdo" / "__init__.py", r'__version__\s*=\s*"([^"]+)"'
@@ -30,12 +41,9 @@ def main() -> None:
         ROOT / "CITATION.cff", r'^version:\s*"?([^"\n]+)"?',
     )
 
-    if package_version != citation_version:
-        sys.exit(
-            f"Version mismatch: plsdo/__init__.py is {package_version!r} but "
-            f"CITATION.cff is {citation_version!r}. Update both (and "
-            f"CITATION.cff's date-released) before releasing."
-        )
+    error = compare(package_version, citation_version)
+    if error:
+        sys.exit(error)
 
     print(f"Versions agree: {package_version}")
 
