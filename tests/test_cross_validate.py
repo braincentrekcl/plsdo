@@ -117,3 +117,27 @@ class TestMulticlass:
 
         results = run_cv(X, labels, n_splits=5, n_repeats=2, n_components=2, seed=42)
         assert set(results["pred_labels"]).issubset({0, 1, 2})
+
+
+class TestSklearnImportGuard:
+    def test_missing_sklearn_raises_helpful_error(self, monkeypatch):
+        """Importing cross_validate without scikit-learn points at plsdo[cv]."""
+        import builtins
+        import importlib
+        import sys
+
+        for mod in list(sys.modules):
+            if mod == "sklearn" or mod.startswith("sklearn.") or mod == "plsdo.cross_validate":
+                monkeypatch.delitem(sys.modules, mod, raising=False)
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "sklearn" or name.startswith("sklearn."):
+                raise ImportError("simulated missing scikit-learn")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        with pytest.raises(ImportError, match=r"plsdo\[cv\]"):
+            importlib.import_module("plsdo.cross_validate")

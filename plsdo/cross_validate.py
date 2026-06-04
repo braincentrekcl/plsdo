@@ -2,14 +2,20 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.cross_decomposition import PLSRegression
-from sklearn.metrics import (
-    accuracy_score,
-    balanced_accuracy_score,
-    confusion_matrix,
-)
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.preprocessing import StandardScaler
+try:
+    from sklearn.cross_decomposition import PLSRegression
+    from sklearn.metrics import (
+        accuracy_score,
+        balanced_accuracy_score,
+        confusion_matrix,
+    )
+    from sklearn.model_selection import RepeatedStratifiedKFold
+    from sklearn.preprocessing import StandardScaler
+except ImportError as exc:
+    raise ImportError(
+        "scikit-learn is required for cross-validation but is not installed. "
+        "Install the optional dependency with: pip install 'plsdo[cv]'"
+    ) from exc
 
 from plsdo.io import corrected_pvalue
 
