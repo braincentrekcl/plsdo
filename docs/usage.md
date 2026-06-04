@@ -125,11 +125,17 @@ and a facet takes the other:
 - `facet_rows` keeps the latent variables across the columns and splits the
   facet levels down the rows (the usual choice).
 - `facet_cols` puts the facet levels across the columns and moves the latent
-  variables onto the rows.
+  variables onto the rows. **This is how you place the latent variables on
+  the rows:** give a grouping column `role: facet_cols`.
 
-Because a grid has only two axes, set **one** of `facet_rows`/`facet_cols`,
-not both. With no facet, add `facet_col_wrap: N` to a group to control how
-many latent-variable columns appear before wrapping.
+Because a grid has only two axes — one for the latent variables and one for a
+facet — you may set **either** `facet_rows` **or** `facet_cols`, but not both.
+A config that sets both is rejected with an error when it is parsed (the
+latent variables and two facets cannot share two axes).
+
+With no facet, the latent variables stay on the columns; add
+`facet_col_wrap: N` to a group to control how many latent-variable columns
+appear before wrapping.
 
 ### Compound Subject IDs
 
