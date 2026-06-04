@@ -119,6 +119,15 @@ class TestMulticlass:
         assert set(results["pred_labels"]).issubset({0, 1, 2})
 
 
+class TestCVEdgeCases:
+    def test_too_few_subjects_raises_clear_error(self):
+        """Fewer subjects than folds must fail loudly, not silently."""
+        X = np.random.default_rng(0).standard_normal((4, 5))
+        labels = np.array([0, 0, 1, 1])
+        with pytest.raises(ValueError, match="n_splits"):
+            run_cv(X, labels, n_splits=5, n_repeats=1, n_components=1, seed=0)
+
+
 class TestSklearnImportGuard:
     def test_missing_sklearn_raises_helpful_error(self, monkeypatch):
         """Importing cross_validate without scikit-learn points at plsdo[cv]."""

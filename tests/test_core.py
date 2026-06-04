@@ -434,6 +434,49 @@ class TestKnownAnswer:
         assert np.all(np.abs(model.u_bootstrap_ratios[:4, 0]) > 1.96)
 
 
+class TestEdgeCases:
+    """SVD-path edge cases: extreme feature counts and the discriminatory
+    many-group design. Assert shapes hold so the engine degrades gracefully."""
+
+    def test_single_x_feature(self):
+        """A single X feature yields one component and runs end-to-end."""
+        from plsdo.io import zscore_columns
+
+        rng = np.random.default_rng(0)
+        X = zscore_columns(rng.standard_normal((20, 1)))
+        Y = zscore_columns(rng.standard_normal((20, 4)))
+        model = PLS(X, Y, seed=1)
+        model.fit()
+        model.permutation_test(n_perms=50)
+        model.bootstrap(n_bootstraps=50)
+        model.filter_lvs()
+
+        assert model.s.shape == (1,)
+        assert model.u.shape == (1, 1)
+        assert model.vt.shape == (1, 4)
+        assert model.u_bootstrap_ratios.shape == (1, 1)
+        assert model.final_lvs.shape == (1,)
+
+    def test_many_group_discriminatory(self):
+        """Dummy-coded X with five groups gives min(n_groups, n_y) components."""
+        from plsdo.io import zscore_columns
+
+        labels = np.repeat(np.arange(5), 5)  # 5 groups, 25 subjects
+        X = np.eye(5)[labels].astype(float)  # discriminatory design (not z-scored)
+        Y = zscore_columns(np.random.default_rng(0).standard_normal((25, 3)))
+        model = PLS(X, Y, seed=1, zscore_x=False)
+        model.fit()
+        model.permutation_test(n_perms=30)
+        model.bootstrap(n_bootstraps=30)
+        model.filter_lvs()
+
+        n_components = min(5, 3)
+        assert model.s.shape == (n_components,)
+        assert model.u.shape == (5, n_components)
+        assert model.vt.shape == (n_components, 3)
+        assert model.final_lvs.shape == (n_components,)
+
+
 class TestInvariants:
     """Cheap properties any correct PLS decomposition must satisfy. No
     reference values needed; these guard against a future ``_decompose`` (e.g.
