@@ -94,6 +94,12 @@ classification target.
 
 ### Faceting the Score Plots
 
+Any column given a role other than `ignore` is part of the model — for
+discriminatory PLS it is dummy-coded into the design matrix alongside the
+other factors. The role only chooses how that factor is laid out in the
+score plots; it does not change whether the factor is modelled. To keep a
+demographic column out of the analysis entirely, give it `role: ignore`.
+
 The subject-score box/strip plots can be split into a grid by a further
 grouping variable using the `facet_rows` or `facet_cols` role:
 

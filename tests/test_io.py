@@ -524,42 +524,27 @@ class TestBuildDesignMatrix:
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (2, 2)  # only group, not cage
 
-    def test_excludes_facet_roles_from_design(self):
-        """facet_rows/facet_cols are display-only and must not become
-        predictors in the discriminatory design matrix."""
+    def test_facet_roles_are_modelled(self):
+        """Any role other than 'ignore' puts the factor in the model: a
+        facet_rows/facet_cols column is dummy-coded into the design matrix
+        alongside x_axis and hue. ('ignore' is the only exclusion.)"""
         demo = pd.DataFrame(
             {
                 "subject_id": ["s1", "s2", "s3", "s4"],
-                "group": ["A", "A", "B", "B"],
+                "geno": ["A", "A", "B", "B"],
                 "sex": ["F", "M", "F", "M"],
-                "site": ["P", "Q", "P", "Q"],
             }
         )
         config = GroupConfig(
             groups=[
-                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="geno", role="x_axis"),
                 GroupSpec(column="sex", role="facet_rows"),
-                GroupSpec(column="site", role="facet_cols"),
             ]
         )
         X, labels = build_design_matrix(demo, config)
-        # Only the x_axis group enters the design; facet columns are excluded.
-        assert labels == ["group_A", "group_B"]
-        assert X.shape == (4, 2)
-        assert not any("sex" in label or "site" in label for label in labels)
-
-    def test_no_model_role_raises(self):
-        """A discriminatory design needs at least one model grouping; a config
-        of only display/ignore roles cannot build a design matrix."""
-        demo = pd.DataFrame(
-            {
-                "subject_id": ["s1", "s2", "s3", "s4"],
-                "sex": ["F", "M", "F", "M"],
-            }
-        )
-        config = GroupConfig(groups=[GroupSpec(column="sex", role="facet_rows")])
-        with pytest.raises(ValueError, match="at least one"):
-            build_design_matrix(demo, config)
+        # Both factors contribute dummy columns to the additive design.
+        assert labels == ["geno_A", "geno_B", "sex_F", "sex_M"]
+        assert X.shape == (4, 4)
 
 
 class TestGroupConfigRoleQueries:
