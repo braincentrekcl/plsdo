@@ -339,6 +339,23 @@ class TestNullResultWarning:
         _run("discriminatory", out)
         assert not (out / "data" / "subject_scores.csv").exists()
 
+    def test_null_result_recorded_in_log(self, tmp_path, monkeypatch):
+        """The null-result warning must also be persisted durably in log.txt,
+        not only emitted to the console."""
+        _force_no_significant_lvs(monkeypatch)
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        log = (out / "log.txt").read_text()
+        assert "no latent variable" in log.lower()
+
+    def test_normal_run_log_omits_null_message(self, tmp_path):
+        """A normal run keeps at least one LV, so log.txt must not contain the
+        null-result message."""
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        log = (out / "log.txt").read_text()
+        assert "no latent variable" not in log.lower()
+
 
 class TestCrossValidatePipelineOutputs:
     """End-to-end: cross_validate_pipeline writes its CSVs, figures, and log."""

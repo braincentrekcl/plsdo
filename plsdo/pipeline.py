@@ -39,8 +39,8 @@ from plsdo.plotting import (
 logger = logging.getLogger("plsdo")
 
 
-def _write_log(output_dir: Path, params: dict) -> None:
-    """Write a log.txt with run parameters."""
+def _write_log(output_dir: Path, params: dict, notes: list[str] | None = None) -> None:
+    """Write a log.txt with run parameters and optional trailing notes."""
     log_path = output_dir / "log.txt"
     with open(log_path, "w") as f:
         f.write("PLS analysis log\n")
@@ -49,6 +49,10 @@ def _write_log(output_dir: Path, params: dict) -> None:
         f.write("\nParameters:\n")
         for k, v in params.items():
             f.write(f"  {k}: {v}\n")
+        if notes:
+            f.write("\nNotes:\n")
+            for note in notes:
+                f.write(f"  {note}\n")
 
 
 def _save_csv(data: np.ndarray, path: Path, columns=None, index=None):
@@ -391,6 +395,16 @@ def run_pipeline(
             verbose_feature_limit=verbose_feature_limit,
         )
 
+    # Single source of truth for the null-result message, shared between the
+    # console warning and the durable log.txt note so they cannot drift.
+    null_result_message = (
+        "No latent variable was both significant (p < 0.05) and reliable "
+        "(|bootstrap ratio| > 1.96 on both the X and Y sides). The per-LV "
+        "score, loading, and bootstrap-ratio plots were skipped, and "
+        "subject_scores.csv was not written. (The loadings and bootstrap-ratio "
+        "CSVs are still written for every component.)"
+    )
+
     # --- Write log ---
     _write_log(
         output_dir,
@@ -415,18 +429,14 @@ def run_pipeline(
             "n_y_features": len(y_feature_names),
             "significant_lvs": final_lv_names,
         },
+        notes=None if final_lv_names else [null_result_message],
     )
 
     logger.info("PLS analysis complete. Results saved to: %s", output_dir)
     if final_lv_names:
         logger.info("Significant and reliable LVs: %s", final_lv_names)
     else:
-        logger.warning(
-            "No latent variable was both significant (p < 0.05) and reliable "
-            "(|bootstrap ratio| > 1.96 on both the X and Y sides). The per-LV "
-            "score, loading, and bootstrap-ratio plots were skipped, and "
-            "subject_scores.csv was not written."
-        )
+        logger.warning(null_result_message)
 
 
 def cross_validate_pipeline(
