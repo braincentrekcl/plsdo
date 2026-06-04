@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from plsdo import core as core_mod
 from plsdo import pipeline as pipeline_mod
 from plsdo.io import GroupConfig, GroupSpec
 from plsdo.pipeline import (
@@ -144,7 +145,10 @@ class TestVerboseFeatureLimit:
 class TestMultiIndexSubjectScores:
     """Integration: compound subject ID produces a two-level index in CSV."""
 
-    def test_multi_index_subject_scores_csv(self, tmp_path):
+    def test_multi_index_subject_scores_csv(self, tmp_path, monkeypatch):
+        # The synthetic multi-index data keeps no LV on its own, so force one
+        # to survive: the scores CSV is only written when there is a final LV.
+        _force_one_significant_lv(monkeypatch)
         out = tmp_path / "output"
         run_pipeline(
             method="discriminatory",
@@ -279,6 +283,106 @@ class TestRunPipelineOutputs:
         x_cols = [c for c in scores.columns if c.startswith("X_")]
         y_cols = [c for c in scores.columns if c.startswith("Y_")]
         assert len(x_cols) == len(y_cols)
+
+
+def _force_no_significant_lvs(monkeypatch):
+    """Make filter_lvs drop every LV, simulating a null result."""
+    original = core_mod.PLS.filter_lvs
+
+    def zero_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        self.final_lvs = np.zeros(len(self.s), dtype=bool)
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", zero_filter)
+
+
+def _force_one_significant_lv(monkeypatch):
+    """Make filter_lvs keep exactly the first LV, simulating a real result."""
+    original = core_mod.PLS.filter_lvs
+
+    def one_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        mask = np.zeros(len(self.s), dtype=bool)
+        mask[0] = True
+        self.final_lvs = mask
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", one_filter)
+
+
+def _capture_final_lvs(monkeypatch):
+    """Record model.final_lvs after filter_lvs runs, without altering it.
+
+    Returns a list the spy appends the surviving-LV mask to.
+    """
+    captured = []
+    original = core_mod.PLS.filter_lvs
+
+    def capturing_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        captured.append(self.final_lvs.copy())
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", capturing_filter)
+    return captured
+
+
+def test_synthetic_data_yields_a_surviving_lv(tmp_path, monkeypatch):
+    """Several CSV-reading tests (e.g. those reading subject_scores.csv) assume
+    a normal discriminatory run on the synthetic data keeps at least one LV.
+    Make that assumption explicit so it fails loudly if the data ever drifts."""
+    captured = _capture_final_lvs(monkeypatch)
+    _run("discriminatory", tmp_path / "out")
+    # Assert the assumption only — a surviving LV in the final mask — without
+    # coupling to how many times filter_lvs happens to be called.
+    assert captured and any(captured[-1])
+
+
+def _warning_records(caplog):
+    return [r for r in caplog.records if r.levelname == "WARNING"]
+
+
+class TestNullResultWarning:
+    """A null result (no significant + reliable LV) must be announced loudly,
+    not left implicit in an empty `significant_lvs` list with the scores CSV
+    silently omitted."""
+
+    def test_warns_when_no_lvs_survive(self, tmp_path, monkeypatch, caplog):
+        _force_no_significant_lvs(monkeypatch)
+        with caplog.at_level(logging.WARNING, logger="plsdo"):
+            _run("discriminatory", tmp_path / "out")
+        assert any(
+            "no latent variable" in r.message.lower() for r in _warning_records(caplog)
+        )
+
+    def test_no_warning_when_lvs_survive(self, tmp_path, monkeypatch, caplog):
+        # A normal run on the synthetic data keeps at least one LV.
+        with caplog.at_level(logging.WARNING, logger="plsdo"):
+            _run("discriminatory", tmp_path / "out")
+        assert not any(
+            "no latent variable" in r.message.lower() for r in _warning_records(caplog)
+        )
+
+    def test_no_scores_csv_when_no_lvs_survive(self, tmp_path, monkeypatch):
+        _force_no_significant_lvs(monkeypatch)
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        assert not (out / "data" / "subject_scores.csv").exists()
+
+    def test_null_result_recorded_in_log(self, tmp_path, monkeypatch):
+        """The null-result warning must also be persisted durably in log.txt,
+        not only emitted to the console."""
+        _force_no_significant_lvs(monkeypatch)
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        log = (out / "log.txt").read_text()
+        assert "no latent variable" in log.lower()
+
+    def test_normal_run_log_omits_null_message(self, tmp_path):
+        """A normal run keeps at least one LV, so log.txt must not contain the
+        null-result message."""
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        log = (out / "log.txt").read_text()
+        assert "no latent variable" not in log.lower()
 
 
 class TestCrossValidatePipelineOutputs:
