@@ -92,13 +92,21 @@ This works for `plsdo correlational`, `plsdo discriminatory`, and
 cross-validation the column with `role: x_axis` is used as the
 classification target.
 
-### Faceting the Score Plots
+How these columns are used depends on the method:
 
-Any column given a role other than `ignore` is part of the model — for
-discriminatory PLS it is dummy-coded into the design matrix alongside the
-other factors. The role only chooses how that factor is laid out in the
-score plots; it does not change whether the factor is modelled. To keep a
-demographic column out of the analysis entirely, give it `role: ignore`.
+- **Discriminatory PLS** builds its model *from* these columns: every column
+  with a role other than `ignore` is dummy-coded into the design matrix. The
+  role also chooses the plot layout. Use `role: ignore` to keep a column out
+  of the model.
+- **Correlational PLS** takes X and Y as your own matrices, so grouping
+  columns never enter the model — they are used only to colour and facet the
+  score plots. Here `role: ignore` simply means the column is not used for
+  display.
+
+In both cases the role (`x_axis`, `hue`, `facet_rows`, `facet_cols`) chooses
+how that factor is laid out in the score plots.
+
+### Faceting the Score Plots
 
 The subject-score box/strip plots can be split into a grid by a further
 grouping variable using the `facet_rows` or `facet_cols` role:
