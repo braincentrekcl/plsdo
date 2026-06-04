@@ -244,6 +244,16 @@ class TestRunPipelineOutputs:
         assert __version__ in log
         assert f"method: {method}" in log
 
+    def test_log_records_dependency_versions(self, run_out):
+        import numpy
+        import scipy
+
+        _method, out = run_out
+        log = (out / "log.txt").read_text()
+        assert f"numpy: {numpy.__version__}" in log
+        assert f"scipy: {scipy.__version__}" in log
+        assert "scikit-learn:" in log
+
     def test_core_figures_produced(self, run_out):
         _method, out = run_out
         figs = out / "figures"

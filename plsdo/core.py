@@ -186,7 +186,7 @@ class PLS:
         if not self._bootstrapped:
             raise RuntimeError("Call .bootstrap() before .filter_lvs().")
 
-        significant = self.p_values < 0.05
+        significant = self.significant_lvs
 
         # Check if any feature exceeds threshold on X side
         x_reliable = np.any(np.abs(self.u_bootstrap_ratios) > bsr_threshold, axis=0)

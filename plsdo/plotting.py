@@ -366,6 +366,9 @@ def _box_strip_facet(
     )
     if rotate_xticklabels:
         for ax in g.axes.flat:
+            # Pin the tick locator before relabelling: set_xticklabels alone
+            # warns when the number of ticks is not fixed first.
+            ax.set_xticks(ax.get_xticks())
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     g.add_legend()
     _finalise(g, out_path, dpi)

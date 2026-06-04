@@ -39,6 +39,25 @@ from plsdo.plotting import (
 logger = logging.getLogger("plsdo")
 
 
+def _dependency_versions() -> dict[str, str]:
+    """Versions of the numerical dependencies, for reproducibility.
+
+    scikit-learn is optional (only the cross-validate path needs it), so it is
+    reported as "not installed" when absent rather than failing.
+    """
+    import numpy
+    import scipy
+
+    versions = {"numpy": numpy.__version__, "scipy": scipy.__version__}
+    try:
+        import sklearn
+
+        versions["scikit-learn"] = sklearn.__version__
+    except ImportError:
+        versions["scikit-learn"] = "not installed"
+    return versions
+
+
 def _write_log(output_dir: Path, params: dict, notes: list[str] | None = None) -> None:
     """Write a log.txt with run parameters and optional trailing notes."""
     log_path = output_dir / "log.txt"
@@ -46,6 +65,9 @@ def _write_log(output_dir: Path, params: dict, notes: list[str] | None = None) -
         f.write("PLS analysis log\n")
         f.write(f"Version: {__version__}\n")
         f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+        f.write("\nLibrary versions:\n")
+        for name, version in _dependency_versions().items():
+            f.write(f"  {name}: {version}\n")
         f.write("\nParameters:\n")
         for k, v in params.items():
             f.write(f"  {k}: {v}\n")
