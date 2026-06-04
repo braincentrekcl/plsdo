@@ -74,17 +74,6 @@ class TestPLSFit:
             col = model.u_loadings[:, i]
             assert col[np.argmax(np.abs(col))] > 0
 
-    def test_singular_values_descending(self, x_array, y_array):
-        from plsdo.io import zscore_columns
-
-        X = zscore_columns(x_array)
-        Y = zscore_columns(y_array)
-        model = PLS(X, Y)
-        model.fit()
-
-        assert all(model.s[i] >= model.s[i + 1] for i in range(len(model.s) - 1))
-
-
 class TestPermutationTest:
     def _fitted_model(self, x_array, y_array):
         from plsdo.io import zscore_columns

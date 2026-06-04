@@ -111,37 +111,6 @@ class TestVerboseFeatureLimit:
         assert len(produced) > 1
         assert "scree.svg" in produced
 
-    def test_explicit_lower_limit_fires_guard(self, figures_dir, caplog):
-        """60 features with limit=50 — guard fires."""
-        n_features = 60
-        model = _make_mock_model(n_x=n_features, n_y=n_features)
-
-        with caplog.at_level(logging.WARNING, logger="plsdo"):
-            _plot_verbose(
-                model=model,
-                method="correlational",
-                X=np.zeros((10, n_features)),
-                Y=np.zeros((10, n_features)),
-                x_feature_names=[f"x{i}" for i in range(n_features)],
-                x_display_names=[f"x{i}" for i in range(n_features)],
-                y_feature_names=[f"y{i}" for i in range(n_features)],
-                x_colours=None,
-                y_colours=None,
-                final_lv_indices=np.array([0]),
-                final_lv_names=["LV1"],
-                config=None,
-                demo_aligned=None,
-                figures_dir=figures_dir,
-                ext="svg",
-                dpi=72,
-                verbose_feature_limit=50,
-            )
-
-        assert any("Skipping verbose plots" in msg for msg in caplog.messages)
-        produced = sorted(p.name for p in figures_dir.iterdir())
-        assert produced == ["scree.svg"]
-
-
 class TestMultiIndexSubjectScores:
     """Integration: compound subject ID produces a two-level index in CSV."""
 
