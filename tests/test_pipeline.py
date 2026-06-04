@@ -331,8 +331,9 @@ def test_synthetic_data_yields_a_surviving_lv(tmp_path, monkeypatch):
     Make that assumption explicit so it fails loudly if the data ever drifts."""
     captured = _capture_final_lvs(monkeypatch)
     _run("discriminatory", tmp_path / "out")
-    assert len(captured) == 1
-    assert any(captured[0])
+    # Assert the assumption only — a surviving LV in the final mask — without
+    # coupling to how many times filter_lvs happens to be called.
+    assert captured and any(captured[-1])
 
 
 def _warning_records(caplog):
