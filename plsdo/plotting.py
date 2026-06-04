@@ -14,6 +14,11 @@ logger = logging.getLogger("plsdo")
 # Threshold above which heatmap annotations are suppressed
 ANNOTATION_THRESHOLD = 30
 
+# clustermap always allocates space for dendrograms; with clustering disabled
+# they are empty, so this near-zero ratio collapses that gutter to (almost)
+# nothing. It cannot be 0 — clustermap requires a positive ratio.
+COLLAPSED_DENDROGRAM_RATIO = 0.02
+
 # Maximum number of features before verbose plots are skipped
 VERBOSE_FEATURE_LIMIT = 100
 
@@ -161,6 +166,9 @@ def _heatmap_with_colour_bars(
     bars alongside the heatmap while preserving the original row/column order
     (``row_cluster=False``, ``col_cluster=False``). The diverging ``vlag``
     scale, symmetric range, and annotation behaviour match the plain heatmap.
+    The colour bar itself is positioned and sized by ``clustermap`` (which
+    manages its own layout), so it will not match the plain heatmap's
+    ``shrink``-ed colour bar exactly.
     """
     g = sns.clustermap(
         data,
@@ -177,7 +185,7 @@ def _heatmap_with_colour_bars(
         annot=annotate,
         fmt=".2f" if annotate else "",
         figsize=figsize,
-        dendrogram_ratio=0.02,
+        dendrogram_ratio=COLLAPSED_DENDROGRAM_RATIO,
     )
     # No clustering, so the (empty) dendrogram axes are just wasted space.
     g.ax_row_dendrogram.set_visible(False)
