@@ -184,6 +184,10 @@ and `y_bootstrap_ratios.csv` are not filtered.
 
 `--all-plots` generates additional diagnostic figures (scree plot,
 rank-1 heatmaps, bootstrap ratio heatmaps, raw feature distributions).
+When `--x-meta`/`--y-meta` are supplied, the rank-1 and bootstrap-ratio
+heatmaps gain category colour bars alongside their rows (X features) and
+columns (Y features), using the same metadata categories as the loading
+plots.
 When the feature count exceeds 100, heatmaps and distribution plots
 become unreadable and extremely slow, so only the scree plot is
 produced.
