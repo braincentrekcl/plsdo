@@ -251,31 +251,29 @@ def run_pipeline(
     else:
         subject_ids = list(y_aligned[sid].itertuples(index=False, name=None))
     final_lv_names = [f"LV{i + 1}" for i, v in enumerate(model.final_lvs) if v]
-    scores_data = (
-        np.column_stack(
+    # With no final LVs there are no scores to write, so skip the file entirely.
+    if any(model.final_lvs):
+        scores_data = np.column_stack(
             [
                 model.x_scores[:, model.final_lvs],
                 model.y_scores[:, model.final_lvs],
             ]
         )
-        if any(model.final_lvs)
-        else np.empty((len(subject_ids), 0))
-    )
-    scores_cols = [f"X_{name}" for name in final_lv_names] + [
-        f"Y_{name}" for name in final_lv_names
-    ]
-    if len(sid) == 1:
-        scores_df = pd.DataFrame(
-            scores_data, columns=scores_cols, index=subject_ids
-        )
-        scores_df.index.name = sid[0]
-    else:
-        scores_df = pd.DataFrame(
-            scores_data,
-            columns=scores_cols,
-            index=pd.MultiIndex.from_tuples(subject_ids, names=sid),
-        )
-    scores_df.to_csv(data_dir / "subject_scores.csv")
+        scores_cols = [f"X_{name}" for name in final_lv_names] + [
+            f"Y_{name}" for name in final_lv_names
+        ]
+        if len(sid) == 1:
+            scores_df = pd.DataFrame(
+                scores_data, columns=scores_cols, index=subject_ids
+            )
+            scores_df.index.name = sid[0]
+        else:
+            scores_df = pd.DataFrame(
+                scores_data,
+                columns=scores_cols,
+                index=pd.MultiIndex.from_tuples(subject_ids, names=sid),
+            )
+        scores_df.to_csv(data_dir / "subject_scores.csv")
 
     # --- Generate plots ---
     ext = img_format
@@ -427,7 +425,7 @@ def run_pipeline(
             "No latent variable was both significant (p < 0.05) and reliable "
             "(|bootstrap ratio| > 1.96 on both the X and Y sides). The per-LV "
             "score, loading, and bootstrap-ratio plots were skipped, and "
-            "subject_scores.csv has no score columns."
+            "subject_scores.csv was not written."
         )
 
 

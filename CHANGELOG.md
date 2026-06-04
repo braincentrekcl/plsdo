@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A loud warning when a run finds no latent variable that is both significant
   and reliable, so the null result is not left implicit in an empty
-  `significant_lvs` list and a score-free `subject_scores.csv`.
+  `significant_lvs` list; in that case `subject_scores.csv` is not written.
 - `cv` as a short alias for the `cross-validate` subcommand.
 - Test coverage reporting (`pytest-cov`) with a 95% floor, enforced in CI.
 - A CI guard that fails if `CITATION.cff` and the package version drift apart.

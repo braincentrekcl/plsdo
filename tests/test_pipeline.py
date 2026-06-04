@@ -145,7 +145,10 @@ class TestVerboseFeatureLimit:
 class TestMultiIndexSubjectScores:
     """Integration: compound subject ID produces a two-level index in CSV."""
 
-    def test_multi_index_subject_scores_csv(self, tmp_path):
+    def test_multi_index_subject_scores_csv(self, tmp_path, monkeypatch):
+        # The synthetic multi-index data keeps no LV on its own, so force one
+        # to survive: the scores CSV is only written when there is a final LV.
+        _force_one_significant_lv(monkeypatch)
         out = tmp_path / "output"
         run_pipeline(
             method="discriminatory",
@@ -293,6 +296,19 @@ def _force_no_significant_lvs(monkeypatch):
     monkeypatch.setattr(core_mod.PLS, "filter_lvs", zero_filter)
 
 
+def _force_one_significant_lv(monkeypatch):
+    """Make filter_lvs keep exactly the first LV, simulating a real result."""
+    original = core_mod.PLS.filter_lvs
+
+    def one_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        mask = np.zeros(len(self.s), dtype=bool)
+        mask[0] = True
+        self.final_lvs = mask
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", one_filter)
+
+
 def _warning_records(caplog):
     return [r for r in caplog.records if r.levelname == "WARNING"]
 
@@ -316,6 +332,12 @@ class TestNullResultWarning:
         assert not any(
             "no latent variable" in r.message.lower() for r in _warning_records(caplog)
         )
+
+    def test_no_scores_csv_when_no_lvs_survive(self, tmp_path, monkeypatch):
+        _force_no_significant_lvs(monkeypatch)
+        out = tmp_path / "out"
+        _run("discriminatory", out)
+        assert not (out / "data" / "subject_scores.csv").exists()
 
 
 class TestCrossValidatePipelineOutputs:
