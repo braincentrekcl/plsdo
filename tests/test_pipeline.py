@@ -516,3 +516,32 @@ class TestFacetWiring:
             calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
         assert calls[0]["col_wrap"] is None
         assert "facet_col_wrap" in caplog.text
+
+
+class TestBsrThresholdControlsSurvival:
+    """The --bsr-threshold flag controls LV survival, not only plotting."""
+
+    def _run(self, out, bsr_threshold):
+        run_pipeline(
+            method="correlational",
+            x_path=DATA_DIR / "brain.csv",
+            y_path=DATA_DIR / "behaviour.csv",
+            demographics_path=DATA_DIR / "demographics.csv",
+            output_dir=out,
+            group_col="group",
+            subject_id="subject_id",
+            n_perms=200,
+            n_bootstraps=200,
+            seed=42,
+            img_format="png",
+            dpi=72,
+            bsr_threshold=bsr_threshold,
+        )
+        return out / "data" / "subject_scores.csv"
+
+    def test_high_threshold_drops_all_lvs(self, tmp_path):
+        # At the default threshold a latent variable survives and scores are
+        # written; an unreachably high threshold makes no feature reliable, so
+        # no LV survives and the scores file is not written.
+        assert self._run(tmp_path / "default", 1.96).exists()
+        assert not self._run(tmp_path / "high", 1e6).exists()

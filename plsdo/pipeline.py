@@ -131,9 +131,12 @@ def run_pipeline(
     all_plots : bool
         If True, generate additional diagnostic plots.
     bsr_threshold : float
-        Plot loading bars only for features with |bootstrap ratio|
-        exceeding this threshold. Default 1.96 (≈ 95% CI under the
-        standard-normal approximation). CSV outputs are unaffected.
+        Bootstrap-ratio reliability threshold. Default 1.96 (≈ 95% CI under
+        the standard-normal approximation). Controls both which latent
+        variables survive ``filter_lvs`` (a surviving LV needs at least one
+        feature with |bootstrap ratio| > threshold on each side) and which
+        loading bars are plotted. The loading and bootstrap-ratio CSVs are
+        written for every component regardless.
     verbose_feature_limit : int, optional
         Maximum number of features before verbose plots (except scree)
         are skipped. Defaults to ``VERBOSE_FEATURE_LIMIT`` (100).
@@ -211,7 +214,7 @@ def run_pipeline(
     model.fit()
     model.permutation_test(n_perms=n_perms)
     model.bootstrap(n_bootstraps=n_bootstraps)
-    model.filter_lvs()
+    model.filter_lvs(bsr_threshold=bsr_threshold)
 
     # --- Save data CSVs ---
     _save_csv(
