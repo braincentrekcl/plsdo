@@ -61,6 +61,12 @@ path = "plsdo/__init__.py"
 testpaths = ["tests"]
 filterwarnings = [
     "error::UserWarning:seaborn",
+    # seaborn 0.13.2 (the latest release) calls matplotlib's bxp() with the
+    # vert= argument, which matplotlib >= 3.10 deprecates in favour of
+    # orientation=. The fix exists only on seaborn's unreleased main branch, so
+    # there is no version to bump to; ignore this third-party warning until a
+    # seaborn release lands, then remove this line.
+    "ignore:vert.*deprecated:PendingDeprecationWarning",
 ]
 
 [tool.coverage.run]
