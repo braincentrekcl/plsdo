@@ -137,14 +137,11 @@ class PLS:
             aligned_u_load = boot_u_load @ Q
             aligned_vt_load = Q.T @ boot_vt_load
 
-            # Sign correction
-            signs = np.sign(
-                np.sum(aligned_vt_load * self.vt_loadings, axis=1, keepdims=True)
-            )
-            signs[signs == 0] = 1.0
-
-            u_distribution.append(aligned_u_load * signs.T)
-            vt_distribution.append(aligned_vt_load * signs)
+            # No separate sign correction: orthogonal_procrustes returns an
+            # unconstrained orthogonal matrix (reflections allowed), so the
+            # alignment above already resolves each component's arbitrary sign.
+            u_distribution.append(aligned_u_load)
+            vt_distribution.append(aligned_vt_load)
 
         self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2, ddof=1)
         self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2, ddof=1)
