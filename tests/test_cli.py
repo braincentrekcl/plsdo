@@ -5,28 +5,17 @@ from plsdo.cli import pls_main
 
 
 class TestRunValidation:
-    def test_method_required(self, data_dir):
+    def test_no_subcommand_prints_help_and_exits(self, capsys):
         with pytest.raises(SystemExit) as exc_info:
-            pls_main(
-                [
-                    "run",
-                    "--y",
-                    str(data_dir / "behaviour.csv"),
-                    "--demographics",
-                    str(data_dir / "demographics.csv"),
-                    "--output",
-                    "/tmp/pls_test",
-                ]
-            )
+            pls_main([])
         assert exc_info.value.code != 0
+        assert "usage: plsdo" in capsys.readouterr().out
 
-    def test_method_c_without_x_errors(self, data_dir, tmp_path, capsys):
+    def test_correlational_without_x_errors(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
-                    "run",
-                    "--method",
-                    "c",
+                    "correlational",
                     "--y",
                     str(data_dir / "behaviour.csv"),
                     "--demographics",
@@ -37,15 +26,14 @@ class TestRunValidation:
             )
         assert exc_info.value.code != 0
         captured = capsys.readouterr()
-        assert "correlational pls requires --x" in captured.err.lower()
+        # --x is structurally required on the correlational parser.
+        assert "--x" in captured.err.lower()
 
-    def test_method_d_with_x_errors(self, data_dir, tmp_path, capsys):
+    def test_discriminatory_with_x_errors(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
-                    "run",
-                    "--method",
-                    "d",
+                    "discriminatory",
                     "--x",
                     str(data_dir / "brain.csv"),
                     "--y",
@@ -60,15 +48,14 @@ class TestRunValidation:
             )
         assert exc_info.value.code != 0
         captured = capsys.readouterr()
-        assert "do not provide --x" in captured.err.lower()
+        # The discriminatory parser has no --x; argparse rejects it.
+        assert "unrecognized arguments" in captured.err.lower()
 
-    def test_method_d_without_group_col_errors(self, data_dir, tmp_path, capsys):
+    def test_discriminatory_without_group_col_errors(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
-                    "run",
-                    "--method",
-                    "d",
+                    "discriminatory",
                     "--y",
                     str(data_dir / "behaviour.csv"),
                     "--demographics",
@@ -81,12 +68,10 @@ class TestRunValidation:
         captured = capsys.readouterr()
         assert "requires --group-col" in captured.err.lower()
 
-    def test_method_accepts_case_insensitive(self, data_dir, tmp_path):
+    def test_corr_alias_runs(self, data_dir, tmp_path):
         pls_main(
             [
-                "run",
-                "--method",
-                "Correlational",
+                "corr",
                 "--x",
                 str(data_dir / "brain.csv"),
                 "--y",
@@ -105,6 +90,29 @@ class TestRunValidation:
         )
         assert (tmp_path / "out" / "data").exists()
 
+    def test_discrim_alias_runs(self, data_dir, tmp_path):
+        out = tmp_path / "out_discrim"
+        pls_main(
+            [
+                "discrim",
+                "--y",
+                str(data_dir / "behaviour.csv"),
+                "--demographics",
+                str(data_dir / "demographics.csv"),
+                "--group-col",
+                "group",
+                "--subject-id",
+                "subject_id",
+                "--output",
+                str(out),
+                "--n-perms",
+                "10",
+                "--n-bootstraps",
+                "10",
+            ]
+        )
+        assert (out / "data").exists()
+
     def test_group_col_and_groups_mutually_exclusive(
         self,
         data_dir,
@@ -114,9 +122,7 @@ class TestRunValidation:
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
-                    "run",
-                    "--method",
-                    "c",
+                    "correlational",
                     "--x",
                     str(data_dir / "brain.csv"),
                     "--y",
@@ -133,15 +139,38 @@ class TestRunValidation:
             )
         assert exc_info.value.code != 0
         captured = capsys.readouterr()
-        assert "mutually exclusive" in captured.err.lower()
+        # argparse enforces the mutual exclusion structurally.
+        assert "not allowed with" in captured.err.lower()
+
+    def test_abbreviated_flags_are_rejected(self, data_dir, tmp_path, capsys):
+        # allow_abbrev=False: --n-perm must not silently resolve to --n-perms, so
+        # saved scripts cannot break when a future flag makes a prefix ambiguous.
+        # All required flags are supplied so the only error is the abbreviation.
+        with pytest.raises(SystemExit) as exc_info:
+            pls_main(
+                [
+                    "discriminatory",
+                    "--y",
+                    str(data_dir / "behaviour.csv"),
+                    "--demographics",
+                    str(data_dir / "demographics.csv"),
+                    "--group-col",
+                    "group",
+                    "--output",
+                    str(tmp_path / "out"),
+                    "--n-perm",
+                    "10",
+                ]
+            )
+        assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        assert "unrecognized arguments" in captured.err.lower()
 
     def test_all_plots_creates_verbose_figures(self, data_dir, tmp_path):
         out = tmp_path / "out_allplots"
         pls_main(
             [
-                "run",
-                "--method",
-                "d",
+                "discriminatory",
                 "--y",
                 str(data_dir / "behaviour.csv"),
                 "--demographics",
@@ -170,9 +199,7 @@ class TestLogContents:
         out = tmp_path / "out_log"
         pls_main(
             [
-                "run",
-                "--method",
-                "c",
+                "correlational",
                 "--x",
                 str(data_dir / "brain.csv"),
                 "--y",
@@ -203,9 +230,7 @@ class TestLogContents:
         out = tmp_path / "out_log_none"
         pls_main(
             [
-                "run",
-                "--method",
-                "c",
+                "correlational",
                 "--x",
                 str(data_dir / "brain.csv"),
                 "--y",
@@ -313,7 +338,7 @@ class TestCrossValidate:
         assert "group_col: group" in log
         assert "groups:" in log
 
-    def test_group_col_and_groups_mutually_exclusive(self, data_dir, tmp_path):
+    def test_group_col_and_groups_mutually_exclusive(self, data_dir, tmp_path, capsys):
         with pytest.raises(SystemExit) as exc_info:
             pls_main(
                 [
@@ -331,6 +356,9 @@ class TestCrossValidate:
                 ]
             )
         assert exc_info.value.code != 0
+        captured = capsys.readouterr()
+        # argparse enforces the mutual exclusion structurally (matches the run side).
+        assert "not allowed with" in captured.err.lower()
 
     def test_all_plots_creates_convergence_figure(self, data_dir, tmp_path):
         out = tmp_path / "cv_allplots"

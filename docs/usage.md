@@ -28,7 +28,7 @@ uv pip install -e ".[dev]"
 Finds covariance patterns between two continuous data matrices:
 
 ```bash
-plsdo run --method c \
+plsdo correlational \
   --x brain_measures.csv \
   --y behaviour_scores.csv \
   --demographics participants.csv \
@@ -42,13 +42,16 @@ plsdo run --method c \
 Finds patterns that discriminate between groups:
 
 ```bash
-plsdo run --method d \
+plsdo discriminatory \
   --y mri_features.csv \
   --demographics participants.csv \
   --group-col drug_group \
   --subject-id participant_id \
   --output results/
 ```
+
+`corr` and `discrim` are accepted as short aliases for `correlational`
+and `discriminatory` (e.g. `plsdo corr ...`).
 
 ### Cross-Validation
 
@@ -84,7 +87,8 @@ groups:
 ```
 
 Then use `--groups groups.yaml` instead of `--group-col`.
-This works for both `plsdo run` and `plsdo cross-validate`; for
+This works for `plsdo correlational`, `plsdo discriminatory`, and
+`plsdo cross-validate`; for
 cross-validation the column with `role: x_axis` is used as the
 classification target.
 
@@ -142,4 +146,5 @@ at higher dimensions — but the figures will degrade in quality.
 
 ## All Options
 
-Run `plsdo run --help` or `plsdo cross-validate --help` for the full list.
+Run `plsdo correlational --help`, `plsdo discriminatory --help`, or
+`plsdo cross-validate --help` for the full list.

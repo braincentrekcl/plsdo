@@ -69,7 +69,8 @@ The permutation test of CV accuracy answers: is the observed accuracy
 significantly better than chance? A p-value below 0.05 indicates that
 the model generalises beyond the training data.
 
-**Important:** do not select the number of components based on `plsdo run`
-results and then feed that into cross-validation. This introduces
+**Important:** do not select the number of components based on
+`plsdo discriminatory` results and then feed that into cross-validation.
+This introduces
 circularity. Use all components (the default) or use nested
 cross-validation.
