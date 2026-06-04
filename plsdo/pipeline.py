@@ -767,6 +767,26 @@ def _plot_score_boxstrips(
     x_axis_col = config.x_axis_group().column
     hue_col = config.hue_column()
 
+    # LV is always shown, so it occupies one FacetGrid axis and at most one
+    # demographic facet can take the other. Default: LV on columns. A
+    # facet_rows group adds rows; a facet_cols group takes the columns and
+    # pushes LV onto rows. Both at once would need three axes, so reject it.
+    facet_rows_col = config.facet_rows_column()
+    facet_cols_col = config.facet_cols_column()
+    if facet_rows_col and facet_cols_col:
+        raise ValueError(
+            "Cannot facet by both facet_rows and facet_cols: the latent "
+            "variable already occupies one grid axis, leaving room for only "
+            "one demographic facet. Set only one of facet_rows/facet_cols."
+        )
+    if facet_cols_col:
+        col_col, row_col, col_wrap = facet_cols_col, "LV", None
+    else:
+        col_col, row_col = "LV", facet_rows_col
+        # col_wrap only applies without a row facet (FacetGrid cannot wrap
+        # columns when rows are present).
+        col_wrap = None if facet_rows_col else config.facet_col_wrap()
+
     final_lv_indices = np.where(model.final_lvs)[0]
     group_col_names = [g.column for g in group_cols_to_use]
     demo_cols = demo_aligned[group_col_names].reset_index(drop=True)
@@ -803,9 +823,11 @@ def _plot_score_boxstrips(
             scores_df=score_long_df,
             x_col=x_axis_col,
             y_col="score",
-            col_col="LV",
+            col_col=col_col,
             hue_col=hue_col,
             out_path=figures_dir / f"{score_side}_scores_boxplot.{ext}",
+            row_col=row_col,
+            col_wrap=col_wrap,
             dpi=dpi,
         )
 

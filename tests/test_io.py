@@ -555,6 +555,24 @@ class TestGroupConfigRoleQueries:
         config = GroupConfig(groups=[GroupSpec(column="group", role="x_axis")])
         assert config.hue_column() is None
 
+    def test_facet_columns_return_role_columns(self):
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="sex", role="facet_rows"),
+                GroupSpec(column="site", role="facet_cols", facet_col_wrap=3),
+            ]
+        )
+        assert config.facet_rows_column() == "sex"
+        assert config.facet_cols_column() == "site"
+        assert config.facet_col_wrap() == 3
+
+    def test_facet_columns_none_when_absent(self):
+        config = GroupConfig(groups=[GroupSpec(column="group", role="x_axis")])
+        assert config.facet_rows_column() is None
+        assert config.facet_cols_column() is None
+        assert config.facet_col_wrap() is None
+
 
 class TestCorrectedPvalue:
     def test_observed_exceeds_all_null(self):

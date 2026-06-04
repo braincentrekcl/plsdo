@@ -287,6 +287,76 @@ class TestPlotScoresBoxstrip:
             )
         plt.close("all")
 
+    def _facet_df(self):
+        # 4 subjects per (sex, group) cell across two LVs.
+        rng = np.random.default_rng(0)
+        rows = []
+        for lv in ("LV1", "LV2"):
+            for sex in ("F", "M"):
+                for grp in ("A", "B", "C"):
+                    for _ in range(2):
+                        rows.append(
+                            {
+                                "score": rng.standard_normal(),
+                                "LV": lv,
+                                "group": grp,
+                                "sex": sex,
+                            }
+                        )
+        df = pd.DataFrame(rows)
+        df["group"] = pd.Categorical(df["group"], categories=["A", "B", "C"], ordered=True)
+        return df
+
+    def test_row_col_produces_grid_rows(self, tmp_output, monkeypatch):
+        """row_col must add a row facet dimension to the grid (not be a no-op)."""
+        from plsdo import plotting as plotting_mod
+
+        captured = {}
+        real_finalise = plotting_mod._finalise
+
+        def spy_finalise(grid, out_path, dpi):
+            captured["grid"] = grid
+            real_finalise(grid, out_path, dpi)
+
+        monkeypatch.setattr(plotting_mod, "_finalise", spy_finalise)
+
+        plot_scores_boxstrip(
+            scores_df=self._facet_df(),
+            x_col="group",
+            y_col="score",
+            col_col="LV",
+            row_col="sex",
+            out_path=tmp_output / "scores_facet_rows.svg",
+        )
+        g = captured["grid"]
+        assert sorted(g.row_names) == ["F", "M"]
+        assert sorted(g.col_names) == ["LV1", "LV2"]
+
+    def test_lv_can_move_to_rows(self, tmp_output, monkeypatch):
+        """With a group on columns, LV occupies the row dimension."""
+        from plsdo import plotting as plotting_mod
+
+        captured = {}
+        real_finalise = plotting_mod._finalise
+
+        def spy_finalise(grid, out_path, dpi):
+            captured["grid"] = grid
+            real_finalise(grid, out_path, dpi)
+
+        monkeypatch.setattr(plotting_mod, "_finalise", spy_finalise)
+
+        plot_scores_boxstrip(
+            scores_df=self._facet_df(),
+            x_col="group",
+            y_col="score",
+            col_col="sex",
+            row_col="LV",
+            out_path=tmp_output / "scores_lv_rows.svg",
+        )
+        g = captured["grid"]
+        assert sorted(g.row_names) == ["LV1", "LV2"]
+        assert sorted(g.col_names) == ["F", "M"]
+
 
 class TestPlotScoresScatter:
     def test_saves_file(self, tmp_output):

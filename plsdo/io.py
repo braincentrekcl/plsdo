@@ -372,6 +372,29 @@ class GroupConfig:
             (g.column for g in self.active_groups() if g.role == "hue"), None
         )
 
+    def facet_rows_column(self) -> Optional[str]:
+        """Column name of the group with role 'facet_rows', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "facet_rows"), None
+        )
+
+    def facet_cols_column(self) -> Optional[str]:
+        """Column name of the group with role 'facet_cols', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "facet_cols"), None
+        )
+
+    def facet_col_wrap(self) -> Optional[int]:
+        """The first ``facet_col_wrap`` set on any active group, or None."""
+        return next(
+            (
+                g.facet_col_wrap
+                for g in self.active_groups()
+                if g.facet_col_wrap is not None
+            ),
+            None,
+        )
+
 
 def parse_groups_config(
     yaml_path: Path,

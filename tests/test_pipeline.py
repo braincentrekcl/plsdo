@@ -9,7 +9,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from plsdo.pipeline import _plot_verbose, cross_validate_pipeline, run_pipeline
+from plsdo import pipeline as pipeline_mod
+from plsdo.io import GroupConfig, GroupSpec
+from plsdo.pipeline import (
+    _plot_score_boxstrips,
+    _plot_verbose,
+    cross_validate_pipeline,
+    run_pipeline,
+)
 from plsdo.plotting import VERBOSE_FEATURE_LIMIT
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -314,3 +321,76 @@ class TestCrossValidatePipelineOutputs:
     def test_permutation_accuracies_count(self, cv_out):
         null = pd.read_csv(cv_out / "data" / "cv_permutation_accuracies.csv")
         assert len(null) == 20
+
+
+class TestFacetWiring:
+    """The pipeline must translate facet roles into FacetGrid row/col axes.
+
+    LV is always shown, so it occupies one axis and at most one demographic
+    facet can take the other; setting both facet roles is rejected.
+    """
+
+    def _capture_boxstrip_calls(self, config, monkeypatch, tmp_path):
+        calls = []
+        monkeypatch.setattr(
+            pipeline_mod, "plot_scores_boxstrip", lambda **kw: calls.append(kw)
+        )
+        n = 6
+        rng = np.random.default_rng(0)
+        model = SimpleNamespace(
+            final_lvs=np.array([True, True]),
+            x_scores=rng.standard_normal((n, 2)),
+            y_scores=rng.standard_normal((n, 2)),
+        )
+        demo = pd.DataFrame(
+            {
+                "group": ["A", "A", "B", "B", "C", "C"],
+                "sex": ["F", "M", "F", "M", "F", "M"],
+                "site": ["P", "Q", "P", "Q", "P", "Q"],
+            }
+        )
+        _plot_score_boxstrips(
+            model,
+            config,
+            demo,
+            [f"s{i}" for i in range(n)],
+            ["subject_id"],
+            ["LV1", "LV2"],
+            tmp_path,
+            "svg",
+            72,
+        )
+        return calls
+
+    def test_default_keeps_lv_on_columns(self, monkeypatch, tmp_path):
+        config = GroupConfig(groups=[GroupSpec("group", "x_axis")])
+        calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        assert calls[0]["col_col"] == "LV"
+        assert calls[0]["row_col"] is None
+
+    def test_facet_rows_adds_row_axis(self, monkeypatch, tmp_path):
+        config = GroupConfig(
+            groups=[GroupSpec("group", "x_axis"), GroupSpec("sex", "facet_rows")]
+        )
+        calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        assert calls[0]["col_col"] == "LV"
+        assert calls[0]["row_col"] == "sex"
+
+    def test_facet_cols_moves_lv_to_rows(self, monkeypatch, tmp_path):
+        config = GroupConfig(
+            groups=[GroupSpec("group", "x_axis"), GroupSpec("sex", "facet_cols")]
+        )
+        calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        assert calls[0]["col_col"] == "sex"
+        assert calls[0]["row_col"] == "LV"
+
+    def test_both_facet_roles_rejected(self, monkeypatch, tmp_path):
+        config = GroupConfig(
+            groups=[
+                GroupSpec("group", "x_axis"),
+                GroupSpec("sex", "facet_rows"),
+                GroupSpec("site", "facet_cols"),
+            ]
+        )
+        with pytest.raises(ValueError, match="both facet_rows and facet_cols"):
+            self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
