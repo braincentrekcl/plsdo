@@ -420,7 +420,15 @@ def run_pipeline(
     )
 
     logger.info("PLS analysis complete. Results saved to: %s", output_dir)
-    logger.info("Significant and reliable LVs: %s", final_lv_names)
+    if final_lv_names:
+        logger.info("Significant and reliable LVs: %s", final_lv_names)
+    else:
+        logger.warning(
+            "No latent variable was both significant (p < 0.05) and reliable "
+            "(|bootstrap ratio| > 1.96 on both the X and Y sides). The per-LV "
+            "score, loading, and bootstrap-ratio plots were skipped, and "
+            "subject_scores.csv has no score columns."
+        )
 
 
 def cross_validate_pipeline(

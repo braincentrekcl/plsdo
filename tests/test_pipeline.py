@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from plsdo import core as core_mod
 from plsdo import pipeline as pipeline_mod
 from plsdo.io import GroupConfig, GroupSpec
 from plsdo.pipeline import (
@@ -279,6 +280,42 @@ class TestRunPipelineOutputs:
         x_cols = [c for c in scores.columns if c.startswith("X_")]
         y_cols = [c for c in scores.columns if c.startswith("Y_")]
         assert len(x_cols) == len(y_cols)
+
+
+def _force_no_significant_lvs(monkeypatch):
+    """Make filter_lvs drop every LV, simulating a null result."""
+    original = core_mod.PLS.filter_lvs
+
+    def zero_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        self.final_lvs = np.zeros(len(self.s), dtype=bool)
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", zero_filter)
+
+
+def _warning_records(caplog):
+    return [r for r in caplog.records if r.levelname == "WARNING"]
+
+
+class TestNullResultWarning:
+    """A null result (no significant + reliable LV) must be announced loudly,
+    not just left as an empty list at INFO and an index-only scores CSV."""
+
+    def test_warns_when_no_lvs_survive(self, tmp_path, monkeypatch, caplog):
+        _force_no_significant_lvs(monkeypatch)
+        with caplog.at_level(logging.WARNING, logger="plsdo"):
+            _run("discriminatory", tmp_path / "out")
+        assert any(
+            "no latent variable" in r.message.lower() for r in _warning_records(caplog)
+        )
+
+    def test_no_warning_when_lvs_survive(self, tmp_path, monkeypatch, caplog):
+        # A normal run on the synthetic data keeps at least one LV.
+        with caplog.at_level(logging.WARNING, logger="plsdo"):
+            _run("discriminatory", tmp_path / "out")
+        assert not any(
+            "no latent variable" in r.message.lower() for r in _warning_records(caplog)
+        )
 
 
 class TestCrossValidatePipelineOutputs:
