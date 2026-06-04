@@ -125,8 +125,8 @@ and a facet takes the other:
 - `facet_rows` keeps the latent variables across the columns and splits the
   facet levels down the rows (the usual choice).
 - `facet_cols` puts the facet levels across the columns and moves the latent
-  variables onto the rows. **This is how you place the latent variables on
-  the rows:** give a grouping column `role: facet_cols`.
+  variables onto the rows. Use it when you want the latent variables shown as
+  rows.
 
 Because a grid has only two axes — one for the latent variables and one for a
 facet — you may set **either** `facet_rows` **or** `facet_cols`, but not both.
