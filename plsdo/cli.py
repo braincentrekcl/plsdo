@@ -139,6 +139,7 @@ def pls_main(argv=None):
     # --- plsdo cross-validate ---
     cv_parser = subparsers.add_parser(
         "cross-validate",
+        aliases=["cv"],
         help="Cross-validate discriminatory PLS model",
         parents=[common],
         allow_abbrev=False,

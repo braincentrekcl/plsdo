@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cv` as a short alias for the `cross-validate` subcommand.
 - Test coverage reporting (`pytest-cov`) with a 95% floor, enforced in CI.
 - A CI guard that fails if `CITATION.cff` and the package version drift apart.
 - End-to-end tests covering the full pipeline and cross-validation output.
