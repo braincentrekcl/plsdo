@@ -309,13 +309,40 @@ def _force_one_significant_lv(monkeypatch):
     monkeypatch.setattr(core_mod.PLS, "filter_lvs", one_filter)
 
 
+def _capture_final_lvs(monkeypatch):
+    """Record model.final_lvs after filter_lvs runs, without altering it.
+
+    Returns a list the spy appends the surviving-LV mask to.
+    """
+    captured = []
+    original = core_mod.PLS.filter_lvs
+
+    def capturing_filter(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        captured.append(self.final_lvs.copy())
+
+    monkeypatch.setattr(core_mod.PLS, "filter_lvs", capturing_filter)
+    return captured
+
+
+def test_synthetic_data_yields_a_surviving_lv(tmp_path, monkeypatch):
+    """Several CSV-reading tests (e.g. those reading subject_scores.csv) assume
+    a normal discriminatory run on the synthetic data keeps at least one LV.
+    Make that assumption explicit so it fails loudly if the data ever drifts."""
+    captured = _capture_final_lvs(monkeypatch)
+    _run("discriminatory", tmp_path / "out")
+    assert len(captured) == 1
+    assert any(captured[0])
+
+
 def _warning_records(caplog):
     return [r for r in caplog.records if r.levelname == "WARNING"]
 
 
 class TestNullResultWarning:
     """A null result (no significant + reliable LV) must be announced loudly,
-    not just left as an empty list at INFO and an index-only scores CSV."""
+    not left implicit in an empty `significant_lvs` list with the scores CSV
+    silently omitted."""
 
     def test_warns_when_no_lvs_survive(self, tmp_path, monkeypatch, caplog):
         _force_no_significant_lvs(monkeypatch)
