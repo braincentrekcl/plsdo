@@ -49,6 +49,7 @@ class PLS:
         """Run PLS: cross-covariance, SVD, loadings, and subject scores."""
         self.xcorr = self.X.T @ self.Y / (self.n_subjects - 1)
         self._decompose()
+        self._fix_component_signs()
         self.u_loadings = self.u * self.s[np.newaxis, :]
         self.vt_loadings = self.s[:, np.newaxis] * self.vt
         self.x_scores = self.X @ self.u
@@ -62,6 +63,22 @@ class PLS:
         just this step.
         """
         self.u, self.s, self.vt = np.linalg.svd(self.xcorr, full_matrices=False)
+
+    def _fix_component_signs(self):
+        """Pin each component's arbitrary global sign deterministically.
+
+        A PLS component's sign is not scientifically meaningful, but
+        ``np.linalg.svd`` can return a different one across BLAS builds, which
+        would flip loadings, scores, and bootstrap ratios machine-to-machine.
+        Flip each component so its largest-magnitude X loading is positive,
+        making all package outputs reproducible across machines. ``u`` and
+        ``vt`` share a component's sign, so both are flipped together.
+        """
+        max_idx = np.argmax(np.abs(self.u), axis=0)
+        signs = np.sign(self.u[max_idx, np.arange(self.u.shape[1])])
+        signs[signs == 0] = 1.0
+        self.u = self.u * signs
+        self.vt = self.vt * signs[:, np.newaxis]
 
     def _check_fitted(self):
         """Raise if fit() has not been called."""

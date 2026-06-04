@@ -60,6 +60,20 @@ class TestPLSFit:
         np.testing.assert_allclose(model.x_scores, X @ model.u)
         np.testing.assert_allclose(model.y_scores, Y @ model.vt.T)
 
+    def test_sign_convention_largest_loading_positive(self, x_array, y_array):
+        """Each component is sign-fixed so its largest-magnitude X loading is
+        positive. A PLS component's global sign is arbitrary and can flip
+        across BLAS builds; pinning it makes outputs reproducible across
+        machines."""
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+
+        for i in range(model.s.shape[0]):
+            col = model.u_loadings[:, i]
+            assert col[np.argmax(np.abs(col))] > 0
+
     def test_singular_values_descending(self, x_array, y_array):
         from plsdo.io import zscore_columns
 
