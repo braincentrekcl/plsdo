@@ -585,5 +585,11 @@ def build_design_matrix(
         all_dummies.append(dummy_arr)
         all_labels.extend(labels)
 
+    if not all_dummies:
+        raise ValueError(
+            "Discriminatory PLS needs at least one grouping column with a "
+            "role other than 'ignore' to build the design matrix."
+        )
+
     X = np.concatenate(all_dummies, axis=1)
     return X, all_labels

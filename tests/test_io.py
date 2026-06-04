@@ -524,6 +524,15 @@ class TestBuildDesignMatrix:
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (2, 2)  # only group, not cage
 
+    def test_all_ignore_config_raises(self):
+        """A discriminatory design needs at least one modelled grouping; an
+        all-'ignore' config fails loudly rather than with an opaque numpy
+        concatenate error."""
+        demo = pd.DataFrame({"subject_id": ["s1", "s2"], "cage": [1, 2]})
+        config = GroupConfig(groups=[GroupSpec(column="cage", role="ignore")])
+        with pytest.raises(ValueError, match="at least one grouping column"):
+            build_design_matrix(demo, config)
+
     def test_facet_roles_are_modelled(self):
         """Any role other than 'ignore' puts the factor in the model: a
         facet_rows/facet_cols column is dummy-coded into the design matrix
