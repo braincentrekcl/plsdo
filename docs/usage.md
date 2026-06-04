@@ -93,6 +93,51 @@ This works for `plsdo correlational`, `plsdo discriminatory`, and
 cross-validation the column with `role: x_axis` is used as the
 classification target.
 
+How these columns are used depends on the method:
+
+- **Discriminatory PLS** builds its model *from* these columns: every column
+  with a role other than `ignore` is dummy-coded into the design matrix. The
+  role also chooses the plot layout. Use `role: ignore` to keep a column out
+  of the model.
+- **Correlational PLS** takes X and Y as your own matrices, so grouping
+  columns never enter the model — they are used only to colour and facet the
+  score plots. Here `role: ignore` simply means the column is not used for
+  display.
+
+In both cases the role (`x_axis`, `hue`, `facet_rows`, `facet_cols`) chooses
+how that factor is laid out in the score plots.
+
+### Faceting the Score Plots
+
+The subject-score box/strip plots can be split into a grid by a further
+grouping variable using the `facet_rows` or `facet_cols` role:
+
+```yaml
+groups:
+  - column: genotype
+    role: x_axis
+  - column: sex
+    role: facet_rows
+```
+
+Each latent variable is always shown, so it occupies one axis of the grid
+and a facet takes the other:
+
+- `facet_rows` keeps the latent variables across the columns and splits the
+  facet levels down the rows (the usual choice).
+- `facet_cols` puts the facet levels across the columns and moves the latent
+  variables onto the rows. Use it when you want the latent variables shown as
+  rows.
+
+Because a grid has only two axes — one for the latent variables and one for a
+facet — you may set **either** `facet_rows` **or** `facet_cols`, but not both.
+A config that sets both is rejected with an error when it is parsed (the
+latent variables and two facets cannot share two axes).
+
+With no facet, the latent variables stay on the columns; add
+`facet_col_wrap: N` to a group to control how many latent-variable columns
+appear before wrapping.
+
 ### Compound Subject IDs
 
 If subjects are identified by more than one column (e.g. a subject

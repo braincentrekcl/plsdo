@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `facet_rows`/`facet_cols` group roles were parsed and validated but never
+  applied — a config requesting faceting silently produced an unfaceted plot.
+  The score box/strip plots are now faceted: `facet_rows` adds grid rows and
+  `facet_cols` puts the facet on the columns (moving the latent variables onto
+  the rows). Setting both is rejected at config-parse time with a clear error.
 - `plsdo.__version__` was hardcoded to `0.1.0` while the package was `0.1.1`;
   the version is now correct and single-sourced.
 

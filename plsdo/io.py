@@ -372,6 +372,29 @@ class GroupConfig:
             (g.column for g in self.active_groups() if g.role == "hue"), None
         )
 
+    def facet_rows_column(self) -> Optional[str]:
+        """Column name of the group with role 'facet_rows', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "facet_rows"), None
+        )
+
+    def facet_cols_column(self) -> Optional[str]:
+        """Column name of the group with role 'facet_cols', or None if none."""
+        return next(
+            (g.column for g in self.active_groups() if g.role == "facet_cols"), None
+        )
+
+    def facet_col_wrap(self) -> Optional[int]:
+        """The first ``facet_col_wrap`` set on any active group, or None."""
+        return next(
+            (
+                g.facet_col_wrap
+                for g in self.active_groups()
+                if g.facet_col_wrap is not None
+            ),
+            None,
+        )
+
 
 def parse_groups_config(
     yaml_path: Path,
@@ -417,6 +440,15 @@ def parse_groups_config(
         )
 
     config = GroupConfig(subject_id=subject_id, groups=groups)
+
+    # The latent variable always occupies one axis of the score-plot grid,
+    # leaving room for only one demographic facet on the other axis.
+    if config.facet_rows_column() and config.facet_cols_column():
+        raise ValueError(
+            "Cannot set both facet_rows and facet_cols: the latent variable "
+            "already occupies one grid axis, leaving room for only one "
+            "demographic facet. Use only one of facet_rows/facet_cols."
+        )
 
     # Validate against demographics if provided
     if demographics_df is not None:
@@ -552,6 +584,12 @@ def build_design_matrix(
 
         all_dummies.append(dummy_arr)
         all_labels.extend(labels)
+
+    if not all_dummies:
+        raise ValueError(
+            "Discriminatory PLS needs at least one grouping column with a "
+            "role other than 'ignore' to build the design matrix."
+        )
 
     X = np.concatenate(all_dummies, axis=1)
     return X, all_labels
