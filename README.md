@@ -67,7 +67,7 @@ plsdo discriminatory \
 ```
 
 `corr` and `discrim` are accepted as short aliases for `correlational`
-and `discriminatory`.
+and `discriminatory`, and `cv` for `cross-validate`.
 
 ### Cross-validation (discriminatory only)
 

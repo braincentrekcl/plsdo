@@ -312,6 +312,31 @@ class TestCrossValidate:
         assert (out / "data").exists()
         assert (out / "log.txt").exists()
 
+    def test_cv_alias_runs(self, data_dir, tmp_path):
+        out = tmp_path / "cv_alias"
+        pls_main(
+            [
+                "cv",
+                "--y",
+                str(data_dir / "behaviour.csv"),
+                "--demographics",
+                str(data_dir / "demographics.csv"),
+                "--group-col",
+                "group",
+                "--subject-id",
+                "subject_id",
+                "--output",
+                str(out),
+                "--n-folds",
+                "3",
+                "--n-repeats",
+                "2",
+                "--n-permutations",
+                "10",
+            ]
+        )
+        assert (out / "data").exists()
+
     def test_accepts_groups_yaml(self, data_dir, tmp_path):
         out = tmp_path / "cv_yaml"
         pls_main(
