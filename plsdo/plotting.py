@@ -94,6 +94,24 @@ def plot_heatmap(
     n_rows, n_cols = data.shape
     figsize = figure_size(n_rows, n_cols)
     annotate = n_rows <= ANNOTATION_THRESHOLD and n_cols <= ANNOTATION_THRESHOLD
+    tick_fontsize = max(4.0, min(10.0, 200 / max(n_rows, n_cols)))
+
+    if row_colors is not None or col_colors is not None:
+        _heatmap_with_colour_bars(
+            data,
+            v=v,
+            xticklabels=xticklabels,
+            yticklabels=yticklabels,
+            out_path=out_path,
+            subtitle=subtitle,
+            row_colors=row_colors,
+            col_colors=col_colors,
+            figsize=figsize,
+            annotate=annotate,
+            tick_fontsize=tick_fontsize,
+            dpi=dpi,
+        )
+        return
 
     fig, ax = plt.subplots(figsize=figsize)
     sns.heatmap(
@@ -109,7 +127,6 @@ def plot_heatmap(
         annot=annotate,
         fmt=".2f" if annotate else "",
     )
-    tick_fontsize = max(4.0, min(10.0, 200 / max(n_rows, n_cols)))
     ax.set_xticklabels(
         ax.get_xticklabels(), rotation=45, ha="right",
         fontsize=tick_fontsize,
@@ -120,6 +137,63 @@ def plot_heatmap(
     if subtitle:
         fig.suptitle(subtitle)
     _finalise(fig, out_path, dpi)
+
+
+def _heatmap_with_colour_bars(
+    data: np.ndarray,
+    *,
+    v: float,
+    xticklabels: list[str],
+    yticklabels: list[str],
+    out_path: Path,
+    subtitle: Optional[str],
+    row_colors: Optional[list],
+    col_colors: Optional[list],
+    figsize: tuple[float, float],
+    annotate: bool,
+    tick_fontsize: float,
+    dpi: int,
+) -> None:
+    """Heatmap with metadata colour bars beside the rows and/or columns.
+
+    ``sns.heatmap`` cannot draw row/column colour strips, so a ``clustermap``
+    with both dendrograms disabled is used instead: it lays out the colour
+    bars alongside the heatmap while preserving the original row/column order
+    (``row_cluster=False``, ``col_cluster=False``). The diverging ``vlag``
+    scale, symmetric range, and annotation behaviour match the plain heatmap.
+    """
+    g = sns.clustermap(
+        data,
+        row_cluster=False,
+        col_cluster=False,
+        row_colors=row_colors,
+        col_colors=col_colors,
+        vmin=-v,
+        vmax=v,
+        center=0,
+        cmap="vlag",
+        xticklabels=xticklabels,
+        yticklabels=yticklabels,
+        annot=annotate,
+        fmt=".2f" if annotate else "",
+        figsize=figsize,
+        dendrogram_ratio=0.02,
+    )
+    # No clustering, so the (empty) dendrogram axes are just wasted space.
+    g.ax_row_dendrogram.set_visible(False)
+    g.ax_col_dendrogram.set_visible(False)
+
+    ax = g.ax_heatmap
+    ax.set_xticklabels(
+        ax.get_xticklabels(), rotation=45, ha="right", fontsize=tick_fontsize
+    )
+    ax.set_yticklabels(
+        ax.get_yticklabels(), rotation=0, fontsize=tick_fontsize
+    )
+    if subtitle:
+        g.figure.suptitle(subtitle)
+    g.savefig(out_path, transparent=False, dpi=dpi)
+    plt.close(g.figure)
 
 
 def plot_permutation(
