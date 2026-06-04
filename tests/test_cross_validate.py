@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 from plsdo.cross_validate import run_cv, permutation_test_cv
@@ -117,6 +119,45 @@ class TestMulticlass:
 
         results = run_cv(X, labels, n_splits=5, n_repeats=2, n_components=2, seed=42)
         assert set(results["pred_labels"]).issubset({0, 1, 2})
+
+
+class TestCVFlip:
+    def test_pipeline_passes_continuous_data_as_predictor(self, monkeypatch, tmp_path):
+        """Lock the deliberate X/Y flip: cross_validate_pipeline must pass the
+        continuous Y-matrix as run_cv's predictor and the group codes as the
+        target — the opposite of the discriminatory run_pipeline convention."""
+        import plsdo.cross_validate as cv_mod
+        from plsdo.pipeline import cross_validate_pipeline
+
+        data_dir = Path(__file__).parent / "data"
+        real_run_cv = cv_mod.run_cv
+        calls = []
+
+        def spy(X, labels, **kwargs):
+            calls.append((np.asarray(X), np.asarray(labels)))
+            return real_run_cv(X, labels, **kwargs)
+
+        monkeypatch.setattr("plsdo.cross_validate.run_cv", spy)
+
+        cross_validate_pipeline(
+            y_path=data_dir / "behaviour.csv",
+            demographics_path=data_dir / "demographics.csv",
+            output_dir=tmp_path / "out",
+            group_col="group",
+            subject_id="subject_id",
+            n_folds=3,
+            n_repeats=2,
+            n_permutations=5,
+            seed=42,
+            img_format="png",
+            dpi=72,
+        )
+
+        predictor, target = calls[0]
+        # behaviour.csv has four continuous features → predictor is the data.
+        assert predictor.shape[1] == 4
+        # The target is the integer group codes (3 groups: A, B, C).
+        assert set(np.unique(target)) == {0, 1, 2}
 
 
 class TestCVEdgeCases:

@@ -569,6 +569,9 @@ def cross_validate_pipeline(
 
     # --- Run CV ---
     logger.info("Running %d-fold CV with %d repeats...", n_folds, n_repeats)
+    # X/Y flip: the continuous Y-matrix is the CV *predictor* and the
+    # demographic groups are the classification *target* (opposite to the
+    # discriminatory run_pipeline convention).
     cv_result = run_cv(
         Y,
         labels,
