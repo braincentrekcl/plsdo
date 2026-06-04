@@ -457,6 +457,29 @@ class TestEdgeCases:
         assert model.u_bootstrap_ratios.shape == (1, 1)
         assert model.final_lvs.shape == (1,)
 
+    def test_additive_multifactor_trailing_lv_is_inert(self):
+        """An additive K-factor dummy design is rank-deficient by K-1. The
+        degenerate trailing latent variable must be harmless: ~zero singular
+        value, non-significant, dropped by filter_lvs, with ~zero loadings.
+        (Guards the design without switching to contrast coding.)"""
+        from plsdo.io import zscore_columns
+
+        a = np.repeat(np.arange(3), 4)  # factor A, 3 levels, 12 subjects
+        b = np.tile([0, 1], 6)  # factor B, 2 levels
+        X = np.column_stack([np.eye(3)[a], np.eye(2)[b]]).astype(float)
+        Y = zscore_columns(np.random.default_rng(0).standard_normal((12, 4)))
+
+        model = PLS(X, Y, seed=42, zscore_x=False)
+        model.fit()
+        model.permutation_test(n_perms=100)
+        model.bootstrap(n_bootstraps=100)
+        model.filter_lvs()
+
+        assert model.s[-1] < 1e-8
+        assert not model.significant_lvs[-1]
+        assert not model.final_lvs[-1]
+        assert np.abs(model.u_loadings[:, -1]).max() < 1e-6
+
     def test_many_group_discriminatory(self):
         """Dummy-coded X with five groups gives min(n_groups, n_y) components."""
         from plsdo.io import zscore_columns
