@@ -347,6 +347,25 @@ class TestParseGroupsConfig:
         with pytest.raises(ValueError, match="Invalid role"):
             parse_groups_config(cfg)
 
+    def test_both_facet_roles_raises(self, tmp_path):
+        """The latent variable already occupies one grid axis, so a config
+        cannot request both facet_rows and facet_cols."""
+        cfg = tmp_path / "both_facets.yaml"
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "subject_id": "subject_id",
+                    "groups": [
+                        {"column": "group", "role": "x_axis"},
+                        {"column": "sex", "role": "facet_rows"},
+                        {"column": "site", "role": "facet_cols"},
+                    ],
+                }
+            )
+        )
+        with pytest.raises(ValueError, match="both facet_rows and facet_cols"):
+            parse_groups_config(cfg)
+
     def test_yaml_list_subject_id(self, tmp_path):
         cfg = tmp_path / "multi.yaml"
         cfg.write_text(
@@ -505,6 +524,43 @@ class TestBuildDesignMatrix:
         X, labels = build_design_matrix(demo, config)
         assert X.shape == (2, 2)  # only group, not cage
 
+    def test_excludes_facet_roles_from_design(self):
+        """facet_rows/facet_cols are display-only and must not become
+        predictors in the discriminatory design matrix."""
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3", "s4"],
+                "group": ["A", "A", "B", "B"],
+                "sex": ["F", "M", "F", "M"],
+                "site": ["P", "Q", "P", "Q"],
+            }
+        )
+        config = GroupConfig(
+            groups=[
+                GroupSpec(column="group", role="x_axis"),
+                GroupSpec(column="sex", role="facet_rows"),
+                GroupSpec(column="site", role="facet_cols"),
+            ]
+        )
+        X, labels = build_design_matrix(demo, config)
+        # Only the x_axis group enters the design; facet columns are excluded.
+        assert labels == ["group_A", "group_B"]
+        assert X.shape == (4, 2)
+        assert not any("sex" in label or "site" in label for label in labels)
+
+    def test_no_model_role_raises(self):
+        """A discriminatory design needs at least one model grouping; a config
+        of only display/ignore roles cannot build a design matrix."""
+        demo = pd.DataFrame(
+            {
+                "subject_id": ["s1", "s2", "s3", "s4"],
+                "sex": ["F", "M", "F", "M"],
+            }
+        )
+        config = GroupConfig(groups=[GroupSpec(column="sex", role="facet_rows")])
+        with pytest.raises(ValueError, match="at least one"):
+            build_design_matrix(demo, config)
+
 
 class TestGroupConfigRoleQueries:
     def test_active_groups_excludes_ignore(self):
@@ -555,16 +611,23 @@ class TestGroupConfigRoleQueries:
         config = GroupConfig(groups=[GroupSpec(column="group", role="x_axis")])
         assert config.hue_column() is None
 
-    def test_facet_columns_return_role_columns(self):
+    def test_facet_rows_and_cols_columns(self):
         config = GroupConfig(
             groups=[
                 GroupSpec(column="group", role="x_axis"),
                 GroupSpec(column="sex", role="facet_rows"),
-                GroupSpec(column="site", role="facet_cols", facet_col_wrap=3),
+                GroupSpec(column="site", role="facet_cols"),
             ]
         )
         assert config.facet_rows_column() == "sex"
         assert config.facet_cols_column() == "site"
+
+    def test_facet_col_wrap_read_from_any_active_group(self):
+        # facet_col_wrap applies to the default LV-on-columns layout, so it is
+        # set on the model group rather than a facet group.
+        config = GroupConfig(
+            groups=[GroupSpec(column="group", role="x_axis", facet_col_wrap=3)]
+        )
         assert config.facet_col_wrap() == 3
 
     def test_facet_columns_none_when_absent(self):

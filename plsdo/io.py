@@ -324,6 +324,10 @@ def corrected_pvalue(
 
 VALID_ROLES = {"x_axis", "hue", "facet_rows", "facet_cols", "ignore"}
 
+# Roles that only lay out plots (they split the score figure into a grid) and
+# must NOT enter the discriminatory design matrix as predictors.
+DISPLAY_ONLY_ROLES = {"facet_rows", "facet_cols"}
+
 
 @dataclass
 class GroupSpec:
@@ -441,6 +445,15 @@ def parse_groups_config(
 
     config = GroupConfig(subject_id=subject_id, groups=groups)
 
+    # The latent variable always occupies one axis of the score-plot grid,
+    # leaving room for only one demographic facet on the other axis.
+    if config.facet_rows_column() and config.facet_cols_column():
+        raise ValueError(
+            "Cannot set both facet_rows and facet_cols: the latent variable "
+            "already occupies one grid axis, leaving room for only one "
+            "demographic facet. Use only one of facet_rows/facet_cols."
+        )
+
     # Validate against demographics if provided
     if demographics_df is not None:
         demo_cols = set(demographics_df.columns)
@@ -531,7 +544,9 @@ def build_design_matrix(
     all_labels = []
 
     for spec in config.groups:
-        if spec.role == "ignore":
+        # Skip 'ignore' and display-only (facet) roles: only model groupings
+        # (x_axis, hue) contribute predictors to the discriminatory design.
+        if spec.role == "ignore" or spec.role in DISPLAY_ONLY_ROLES:
             continue
 
         col = demographics[spec.column]
@@ -575,6 +590,13 @@ def build_design_matrix(
 
         all_dummies.append(dummy_arr)
         all_labels.extend(labels)
+
+    if not all_dummies:
+        raise ValueError(
+            "Discriminatory PLS needs at least one model grouping "
+            "(role 'x_axis' or 'hue'); the configuration has only "
+            "display ('facet_rows'/'facet_cols') or 'ignore' roles."
+        )
 
     X = np.concatenate(all_dummies, axis=1)
     return X, all_labels

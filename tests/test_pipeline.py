@@ -327,7 +327,8 @@ class TestFacetWiring:
     """The pipeline must translate facet roles into FacetGrid row/col axes.
 
     LV is always shown, so it occupies one axis and at most one demographic
-    facet can take the other; setting both facet roles is rejected.
+    facet can take the other. (The two-facet case is rejected at parse time;
+    see test_io.py::TestParseGroupsConfig::test_both_facet_roles_raises.)
     """
 
     def _capture_boxstrip_calls(self, config, monkeypatch, tmp_path):
@@ -384,13 +385,30 @@ class TestFacetWiring:
         assert calls[0]["col_col"] == "sex"
         assert calls[0]["row_col"] == "LV"
 
-    def test_both_facet_roles_rejected(self, monkeypatch, tmp_path):
+    def test_default_layout_threads_col_wrap(self, monkeypatch, tmp_path):
+        """In the default layout (LV on columns, no facet) facet_col_wrap is
+        passed through to control column wrapping."""
+        config = GroupConfig(
+            groups=[GroupSpec("group", "x_axis", facet_col_wrap=3)]
+        )
+        calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        assert calls[0]["col_col"] == "LV"
+        assert calls[0]["row_col"] is None
+        assert calls[0]["col_wrap"] == 3
+
+    def test_facet_col_wrap_inert_with_facet_role_warns(
+        self, monkeypatch, tmp_path, caplog
+    ):
+        """facet_col_wrap cannot apply alongside a facet role (the columns
+        can't wrap when LV shares an axis with the facet); warn rather than
+        discard it silently."""
         config = GroupConfig(
             groups=[
                 GroupSpec("group", "x_axis"),
-                GroupSpec("sex", "facet_rows"),
-                GroupSpec("site", "facet_cols"),
+                GroupSpec("sex", "facet_rows", facet_col_wrap=3),
             ]
         )
-        with pytest.raises(ValueError, match="both facet_rows and facet_cols"):
-            self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        with caplog.at_level("WARNING", logger="plsdo"):
+            calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
+        assert calls[0]["col_wrap"] is None
+        assert "facet_col_wrap" in caplog.text
