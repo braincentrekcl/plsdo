@@ -92,6 +92,31 @@ This works for `plsdo correlational`, `plsdo discriminatory`, and
 cross-validation the column with `role: x_axis` is used as the
 classification target.
 
+### Faceting the Score Plots
+
+The subject-score box/strip plots can be split into a grid by a further
+grouping variable using the `facet_rows` or `facet_cols` role:
+
+```yaml
+groups:
+  - column: genotype
+    role: x_axis
+  - column: sex
+    role: facet_rows
+```
+
+Each latent variable is always shown, so it occupies one axis of the grid
+and a facet takes the other:
+
+- `facet_rows` keeps the latent variables across the columns and splits the
+  facet levels down the rows (the usual choice).
+- `facet_cols` puts the facet levels across the columns and moves the latent
+  variables onto the rows.
+
+Because a grid has only two axes, set **one** of `facet_rows`/`facet_cols`,
+not both. With no facet, add `facet_col_wrap: N` to a group to control how
+many latent-variable columns appear before wrapping.
+
 ### Compound Subject IDs
 
 If subjects are identified by more than one column (e.g. a subject
