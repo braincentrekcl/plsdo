@@ -429,3 +429,57 @@ class TestKnownAnswer:
 
         # All four planted features (two per component) are reliable on LV1.
         assert np.all(np.abs(model.u_bootstrap_ratios[:4, 0]) > 1.96)
+
+
+class TestInvariants:
+    """Cheap properties any correct PLS decomposition must satisfy. No
+    reference values needed; these guard against a future ``_decompose`` (e.g.
+    a SparsePLS override) silently breaking the SVD contract.
+    """
+
+    @staticmethod
+    def _planted(eps, seed=0):
+        from plsdo.io import zscore_columns
+
+        n = 60
+        a = np.array([1.0, -1.0, 0, 0])
+        b = np.array([1.0, -1.0, 0])
+        rng = np.random.default_rng(seed)
+        t = rng.standard_normal(n)
+        X = np.outer(t, a) + eps * rng.standard_normal((n, len(a)))
+        Y = np.outer(t, b) + eps * rng.standard_normal((n, len(b)))
+        return zscore_columns(X), zscore_columns(Y)
+
+    def test_svd_reconstructs_cross_covariance(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+        reconstructed = model.u @ np.diag(model.s) @ model.vt
+        np.testing.assert_allclose(reconstructed, model.xcorr, atol=1e-12)
+
+    def test_singular_vectors_orthonormal(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+        k = model.s.shape[0]
+        np.testing.assert_allclose(model.u.T @ model.u, np.eye(k), atol=1e-12)
+        np.testing.assert_allclose(model.vt @ model.vt.T, np.eye(k), atol=1e-12)
+
+    def test_bootstrap_se_shrinks_as_snr_rises(self):
+        """Stronger planted signal ⇒ smaller bootstrap SE / larger BSR on the
+        dominant feature."""
+        X_hi, Y_hi = self._planted(eps=0.1)
+        X_lo, Y_lo = self._planted(eps=0.8)
+
+        m_hi = PLS(X_hi, Y_hi, seed=42)
+        m_hi.fit()
+        m_hi.bootstrap(n_bootstraps=400)
+
+        m_lo = PLS(X_lo, Y_lo, seed=42)
+        m_lo.fit()
+        m_lo.bootstrap(n_bootstraps=400)
+
+        assert m_hi.u_se[0, 0] < m_lo.u_se[0, 0]
+        assert abs(m_hi.u_bootstrap_ratios[0, 0]) > abs(m_lo.u_bootstrap_ratios[0, 0])
