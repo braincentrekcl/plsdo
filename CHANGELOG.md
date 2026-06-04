@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The score box/strip plots are now faceted: `facet_rows` adds grid rows and
   `facet_cols` puts the facet on the columns (moving the latent variables onto
   the rows). Setting both is rejected at config-parse time with a clear error.
+- Heatmap metadata colour bars (`--x-meta`/`--y-meta`) were passed to the
+  plotting layer but silently dropped, because `sns.heatmap` cannot draw
+  row/column colour strips. The rank-1 and bootstrap-ratio heatmaps now
+  render the category colour bars via a non-clustered `clustermap`; heatmaps
+  without metadata are unchanged.
 - `plsdo.__version__` was hardcoded to `0.1.0` while the package was `0.1.1`;
   the version is now correct and single-sourced.
 

@@ -41,6 +41,25 @@ class TestFigureSize:
         assert h >= 4
 
 
+def _spy_clustermap(plotting_mod, monkeypatch):
+    """Wrap sns.clustermap so tests can inspect the ClusterGrid it returns."""
+    captured = {}
+    real = plotting_mod.sns.clustermap
+
+    def spy(*args, **kwargs):
+        grid = real(*args, **kwargs)
+        captured["grid"] = grid
+        return grid
+
+    monkeypatch.setattr(plotting_mod.sns, "clustermap", spy)
+    return captured
+
+
+def _axis_has_artists(ax):
+    """True if a colour-bar axis exists and actually drew something."""
+    return ax is not None and (len(ax.collections) + len(ax.images)) > 0
+
+
 class TestPlotHeatmap:
     def test_saves_file(self, tmp_output):
         data = np.random.default_rng(0).standard_normal((5, 4))
@@ -54,6 +73,24 @@ class TestPlotHeatmap:
         )
         assert out.exists()
         assert out.stat().st_size > 0
+
+    def test_no_colour_bars_uses_plain_heatmap(self, tmp_output, monkeypatch):
+        """Without colour bars the plain sns.heatmap path is used unchanged."""
+        from plsdo import plotting as plotting_mod
+
+        def fail(*args, **kwargs):
+            raise AssertionError("clustermap must not be used without colour bars")
+
+        monkeypatch.setattr(plotting_mod.sns, "clustermap", fail)
+        out = tmp_output / "plain_heatmap.svg"
+        plot_heatmap(
+            np.zeros((3, 3)),
+            v=1.0,
+            xticklabels=["a", "b", "c"],
+            yticklabels=["x", "y", "z"],
+            out_path=out,
+        )
+        assert out.exists()
 
     def test_annotations_suppressed_for_large_data(self, tmp_output, monkeypatch):
         from plsdo import plotting as plotting_mod
@@ -455,6 +492,29 @@ class TestPlotLvHeatmap:
             )
             assert out.exists()
 
+    def test_metadata_colours_rendered_on_both_axes(self, tmp_output, monkeypatch):
+        """X/Y metadata colours must appear as row and column colour bars."""
+        from plsdo import plotting as plotting_mod
+
+        captured = _spy_clustermap(plotting_mod, monkeypatch)
+        rng = np.random.default_rng(0)
+        out = tmp_output / "lv_heatmap_meta.svg"
+        plot_lv_heatmap(
+            lv_idx=0,
+            u=rng.standard_normal((5, 3)),
+            s=np.array([2.0, 1.5, 0.5]),
+            vt=rng.standard_normal((3, 4)),
+            x_feature_names=["x1", "x2", "x3", "x4", "x5"],
+            y_feature_names=["y1", "y2", "y3", "y4"],
+            x_colours=["red", "red", "blue", "blue", "green"],
+            y_colours=["orange", "orange", "purple", "purple"],
+            out_path=out,
+        )
+        assert out.exists()
+        g = captured["grid"]
+        assert _axis_has_artists(g.ax_row_colors)
+        assert _axis_has_artists(g.ax_col_colors)
+
 
 class TestPlotBootstrapHeatmap:
     def test_saves_file(self, tmp_output):
@@ -481,6 +541,26 @@ class TestPlotBootstrapHeatmap:
             out_path=out,
         )
         assert out.exists()
+
+    def test_metadata_colours_rendered_on_rows_only(self, tmp_output, monkeypatch):
+        """Feature metadata colours appear as a row colour bar; columns are LVs
+        (no metadata), so there is no column colour bar."""
+        from plsdo import plotting as plotting_mod
+
+        captured = _spy_clustermap(plotting_mod, monkeypatch)
+        rng = np.random.default_rng(0)
+        out = tmp_output / "bsr_meta.svg"
+        plot_bootstrap_heatmap(
+            bootstrap_ratios=rng.standard_normal((5, 2)),
+            feature_names=["f1", "f2", "f3", "f4", "f5"],
+            lv_names=["LV1", "LV2"],
+            colours=["red", "red", "blue", "blue", "green"],
+            out_path=out,
+        )
+        assert out.exists()
+        g = captured["grid"]
+        assert _axis_has_artists(g.ax_row_colors)
+        assert g.ax_col_colors is None
 
 
 class TestPlotRawDistributions:
