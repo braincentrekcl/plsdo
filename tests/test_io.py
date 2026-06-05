@@ -211,12 +211,8 @@ class TestAlignSubjectsMultiColumn:
         assert "not present in all files" in caplog.text
 
     def test_multi_column_empty_intersection_raises(self):
-        df1 = pd.DataFrame(
-            {"sid": ["a", "a"], "run": [1, 2], "v1": [10, 20]}
-        )
-        df2 = pd.DataFrame(
-            {"sid": ["b", "b"], "run": [1, 2], "v2": [30, 40]}
-        )
+        df1 = pd.DataFrame({"sid": ["a", "a"], "run": [1, 2], "v1": [10, 20]})
+        df2 = pd.DataFrame({"sid": ["b", "b"], "run": [1, 2], "v2": [30, 40]})
         with pytest.raises(ValueError, match="No subjects shared"):
             align_subjects([df1, df2], subject_id=["sid", "run"])
 
@@ -224,9 +220,7 @@ class TestAlignSubjectsMultiColumn:
         df1 = pd.DataFrame({"id": ["a", "b", "c"], "v1": [1, 2, 3]})
         df2 = pd.DataFrame({"id": ["c", "a", "b"], "v2": [30, 10, 20]})
         aligned_str = align_subjects([df1.copy(), df2.copy()], subject_id="id")
-        aligned_list = align_subjects(
-            [df1.copy(), df2.copy()], subject_id=["id"]
-        )
+        aligned_list = align_subjects([df1.copy(), df2.copy()], subject_id=["id"])
         for a, b in zip(aligned_str, aligned_list):
             pd.testing.assert_frame_equal(a, b)
 

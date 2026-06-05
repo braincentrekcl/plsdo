@@ -133,11 +133,15 @@ def plot_heatmap(
         fmt=".2f" if annotate else "",
     )
     ax.set_xticklabels(
-        ax.get_xticklabels(), rotation=45, ha="right",
+        ax.get_xticklabels(),
+        rotation=45,
+        ha="right",
         fontsize=tick_fontsize,
     )
     ax.set_yticklabels(
-        ax.get_yticklabels(), rotation=0, fontsize=tick_fontsize,
+        ax.get_yticklabels(),
+        rotation=0,
+        fontsize=tick_fontsize,
     )
     if subtitle:
         fig.suptitle(subtitle)
@@ -195,9 +199,7 @@ def _heatmap_with_colour_bars(
     ax.set_xticklabels(
         ax.get_xticklabels(), rotation=45, ha="right", fontsize=tick_fontsize
     )
-    ax.set_yticklabels(
-        ax.get_yticklabels(), rotation=0, fontsize=tick_fontsize
-    )
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=tick_fontsize)
     if subtitle:
         g.figure.suptitle(subtitle)
     g.savefig(out_path, transparent=False, dpi=dpi)
@@ -352,16 +354,24 @@ def _box_strip_facet(
     g = sns.FacetGrid(data=data, col=col, sharex=False, **grid_kwargs)
     g.map_dataframe(
         sns.boxplot,
-        x=x, y=y, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, dodge=box_dodge,
+        x=x,
+        y=y,
+        hue=hue,
+        order=order,
+        hue_order=hue_order,
+        palette=palette,
+        dodge=box_dodge,
         **_BOXPLOT_STYLE,
     )
     g.map_dataframe(
         sns.stripplot,
-        x=x, y=y, hue=hue,
-        order=order, hue_order=hue_order,
-        palette=palette, dodge=strip_dodge,
+        x=x,
+        y=y,
+        hue=hue,
+        order=order,
+        hue_order=hue_order,
+        palette=palette,
+        dodge=strip_dodge,
         **_STRIPPLOT_STYLE,
     )
     if rotate_xticklabels:

@@ -177,7 +177,11 @@ class TestSklearnImportGuard:
         import sys
 
         for mod in list(sys.modules):
-            if mod == "sklearn" or mod.startswith("sklearn.") or mod == "plsdo.cross_validate":
+            if (
+                mod == "sklearn"
+                or mod.startswith("sklearn.")
+                or mod == "plsdo.cross_validate"
+            ):
                 monkeypatch.delitem(sys.modules, mod, raising=False)
 
         real_import = builtins.__import__

@@ -38,7 +38,8 @@ def main() -> None:
         ROOT / "plsdo" / "__init__.py", r'__version__\s*=\s*"([^"]+)"'
     )
     citation_version = _extract(
-        ROOT / "CITATION.cff", r'^version:\s*"?([^"\n]+)"?',
+        ROOT / "CITATION.cff",
+        r'^version:\s*"?([^"\n]+)"?',
     )
 
     error = compare(package_version, citation_version)
