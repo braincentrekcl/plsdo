@@ -1,0 +1,9 @@
+# Run `pre-commit install` once to enable these hooks locally.
+# The ruff version here is pinned to match the CI lint job; bump both together.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.11
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

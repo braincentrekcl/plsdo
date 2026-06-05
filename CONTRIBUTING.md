@@ -16,8 +16,15 @@ uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-The `dev` extra includes the test runner, coverage, and the linter. Cross-
-validation additionally requires the `cv` extra (`uv pip install -e ".[dev,cv]"`).
+The `dev` extra includes the test runner, coverage, the linter, and
+`pre-commit`. Cross-validation additionally requires the `cv` extra
+(`uv pip install -e ".[dev,cv]"`).
+
+Install the git hooks once so ruff runs automatically on every commit:
+
+```bash
+pre-commit install
+```
 
 ## Running tests
 

@@ -46,10 +46,13 @@ jobs:
         run: pip install uv
 
       - name: Install ruff
-        run: uv pip install --system ruff
+        run: uv pip install --system ruff==0.15.11
 
-      - name: Run ruff
+      - name: Run ruff check
         run: ruff check plsdo/ tests/
+
+      - name: Run ruff format check
+        run: ruff format --check plsdo/ tests/
 
       - name: Check version consistency
         run: python scripts/check_version.py
