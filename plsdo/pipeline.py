@@ -39,6 +39,25 @@ from plsdo.plotting import (
 logger = logging.getLogger("plsdo")
 
 
+def _dependency_versions() -> dict[str, str]:
+    """Versions of the numerical dependencies, for reproducibility.
+
+    scikit-learn is optional (only the cross-validate path needs it), so it is
+    reported as "not installed" when absent rather than failing.
+    """
+    import numpy
+    import scipy
+
+    versions = {"numpy": numpy.__version__, "scipy": scipy.__version__}
+    try:
+        import sklearn
+
+        versions["scikit-learn"] = sklearn.__version__
+    except ImportError:
+        versions["scikit-learn"] = "not installed"
+    return versions
+
+
 def _write_log(output_dir: Path, params: dict, notes: list[str] | None = None) -> None:
     """Write a log.txt with run parameters and optional trailing notes."""
     log_path = output_dir / "log.txt"
@@ -46,6 +65,9 @@ def _write_log(output_dir: Path, params: dict, notes: list[str] | None = None) -
         f.write("PLS analysis log\n")
         f.write(f"Version: {__version__}\n")
         f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+        f.write("\nLibrary versions:\n")
+        for name, version in _dependency_versions().items():
+            f.write(f"  {name}: {version}\n")
         f.write("\nParameters:\n")
         for k, v in params.items():
             f.write(f"  {k}: {v}\n")
@@ -131,9 +153,12 @@ def run_pipeline(
     all_plots : bool
         If True, generate additional diagnostic plots.
     bsr_threshold : float
-        Plot loading bars only for features with |bootstrap ratio|
-        exceeding this threshold. Default 1.96 (≈ 95% CI under the
-        standard-normal approximation). CSV outputs are unaffected.
+        Bootstrap-ratio reliability threshold. Default 1.96 (≈ 95% CI under
+        the standard-normal approximation). Controls both which latent
+        variables survive ``filter_lvs`` (a surviving LV needs at least one
+        feature with |bootstrap ratio| > threshold on each side) and which
+        loading bars are plotted. The loading and bootstrap-ratio CSVs are
+        written for every component regardless.
     verbose_feature_limit : int, optional
         Maximum number of features before verbose plots (except scree)
         are skipped. Defaults to ``VERBOSE_FEATURE_LIMIT`` (100).
@@ -211,7 +236,7 @@ def run_pipeline(
     model.fit()
     model.permutation_test(n_perms=n_perms)
     model.bootstrap(n_bootstraps=n_bootstraps)
-    model.filter_lvs()
+    model.filter_lvs(bsr_threshold=bsr_threshold)
 
     # --- Save data CSVs ---
     _save_csv(
@@ -544,6 +569,9 @@ def cross_validate_pipeline(
 
     # --- Run CV ---
     logger.info("Running %d-fold CV with %d repeats...", n_folds, n_repeats)
+    # X/Y flip: the continuous Y-matrix is the CV *predictor* and the
+    # demographic groups are the classification *target* (opposite to the
+    # discriminatory run_pipeline convention).
     cv_result = run_cv(
         Y,
         labels,

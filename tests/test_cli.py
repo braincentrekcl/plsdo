@@ -68,7 +68,14 @@ class TestRunValidation:
         captured = capsys.readouterr()
         assert "requires --group-col" in captured.err.lower()
 
-    def test_corr_alias_runs(self, data_dir, tmp_path):
+    def test_corr_alias_dispatches_correlational(self, data_dir, tmp_path, monkeypatch):
+        # The alias only needs to resolve to the correlational subcommand;
+        # the full run is exercised elsewhere. Stub the pipeline to keep this a
+        # fast dispatch check.
+        captured = {}
+        monkeypatch.setattr(
+            "plsdo.pipeline.run_pipeline", lambda **kw: captured.update(kw)
+        )
         pls_main(
             [
                 "corr",
@@ -80,18 +87,17 @@ class TestRunValidation:
                 str(data_dir / "demographics.csv"),
                 "--output",
                 str(tmp_path / "out"),
-                "--n-perms",
-                "10",
-                "--n-bootstraps",
-                "10",
-                "--subject-id",
-                "subject_id",
             ]
         )
-        assert (tmp_path / "out" / "data").exists()
+        assert captured["method"] == "correlational"
 
-    def test_discrim_alias_runs(self, data_dir, tmp_path):
-        out = tmp_path / "out_discrim"
+    def test_discrim_alias_dispatches_discriminatory(
+        self, data_dir, tmp_path, monkeypatch
+    ):
+        captured = {}
+        monkeypatch.setattr(
+            "plsdo.pipeline.run_pipeline", lambda **kw: captured.update(kw)
+        )
         pls_main(
             [
                 "discrim",
@@ -101,17 +107,11 @@ class TestRunValidation:
                 str(data_dir / "demographics.csv"),
                 "--group-col",
                 "group",
-                "--subject-id",
-                "subject_id",
                 "--output",
-                str(out),
-                "--n-perms",
-                "10",
-                "--n-bootstraps",
-                "10",
+                str(tmp_path / "out_discrim"),
             ]
         )
-        assert (out / "data").exists()
+        assert captured["method"] == "discriminatory"
 
     def test_group_col_and_groups_mutually_exclusive(
         self,
@@ -312,8 +312,14 @@ class TestCrossValidate:
         assert (out / "data").exists()
         assert (out / "log.txt").exists()
 
-    def test_cv_alias_runs(self, data_dir, tmp_path):
-        out = tmp_path / "cv_alias"
+    def test_cv_alias_dispatches_cross_validate(self, data_dir, tmp_path, monkeypatch):
+        # The alias only needs to resolve to the cross-validate subcommand; the
+        # full run is exercised by test_runs_successfully. Stub the pipeline.
+        called = {}
+        monkeypatch.setattr(
+            "plsdo.pipeline.cross_validate_pipeline",
+            lambda **kw: called.update(kw, dispatched=True),
+        )
         pls_main(
             [
                 "cv",
@@ -323,19 +329,12 @@ class TestCrossValidate:
                 str(data_dir / "demographics.csv"),
                 "--group-col",
                 "group",
-                "--subject-id",
-                "subject_id",
                 "--output",
-                str(out),
-                "--n-folds",
-                "3",
-                "--n-repeats",
-                "2",
-                "--n-permutations",
-                "10",
+                str(tmp_path / "cv_alias"),
             ]
         )
-        assert (out / "data").exists()
+        assert called["dispatched"] is True
+        assert called["group_col"] == "group"
 
     def test_accepts_groups_yaml(self, data_dir, tmp_path):
         out = tmp_path / "cv_yaml"

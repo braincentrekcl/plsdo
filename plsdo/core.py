@@ -49,6 +49,7 @@ class PLS:
         """Run PLS: cross-covariance, SVD, loadings, and subject scores."""
         self.xcorr = self.X.T @ self.Y / (self.n_subjects - 1)
         self._decompose()
+        self._fix_component_signs()
         self.u_loadings = self.u * self.s[np.newaxis, :]
         self.vt_loadings = self.s[:, np.newaxis] * self.vt
         self.x_scores = self.X @ self.u
@@ -62,6 +63,22 @@ class PLS:
         just this step.
         """
         self.u, self.s, self.vt = np.linalg.svd(self.xcorr, full_matrices=False)
+
+    def _fix_component_signs(self):
+        """Pin each component's arbitrary global sign deterministically.
+
+        A PLS component's sign is not scientifically meaningful, but
+        ``np.linalg.svd`` can return a different one across BLAS builds, which
+        would flip loadings, scores, and bootstrap ratios machine-to-machine.
+        Flip each component so its largest-magnitude X loading is positive,
+        making all package outputs reproducible across machines. ``u`` and
+        ``vt`` share a component's sign, so both are flipped together.
+        """
+        max_idx = np.argmax(np.abs(self.u), axis=0)
+        signs = np.sign(self.u[max_idx, np.arange(self.u.shape[1])])
+        signs[signs == 0] = 1.0
+        self.u = self.u * signs
+        self.vt = self.vt * signs[:, np.newaxis]
 
     def _check_fitted(self):
         """Raise if fit() has not been called."""
@@ -137,14 +154,11 @@ class PLS:
             aligned_u_load = boot_u_load @ Q
             aligned_vt_load = Q.T @ boot_vt_load
 
-            # Sign correction
-            signs = np.sign(
-                np.sum(aligned_vt_load * self.vt_loadings, axis=1, keepdims=True)
-            )
-            signs[signs == 0] = 1.0
-
-            u_distribution.append(aligned_u_load * signs.T)
-            vt_distribution.append(aligned_vt_load * signs)
+            # No separate sign correction: orthogonal_procrustes returns an
+            # unconstrained orthogonal matrix (reflections allowed), so the
+            # alignment above already resolves each component's arbitrary sign.
+            u_distribution.append(aligned_u_load)
+            vt_distribution.append(aligned_vt_load)
 
         self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2, ddof=1)
         self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2, ddof=1)
@@ -172,7 +186,7 @@ class PLS:
         if not self._bootstrapped:
             raise RuntimeError("Call .bootstrap() before .filter_lvs().")
 
-        significant = self.p_values < 0.05
+        significant = self.significant_lvs
 
         # Check if any feature exceeds threshold on X side
         x_reliable = np.any(np.abs(self.u_bootstrap_ratios) > bsr_threshold, axis=0)

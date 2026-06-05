@@ -81,8 +81,9 @@ def pls_main(argv=None):
         default=1.96,
         type=float,
         help=(
-            "Plot loading bars only for features with |bootstrap ratio| > "
-            "THRESHOLD (default: 1.96). Does not affect CSV outputs."
+            "Bootstrap-ratio reliability threshold (default: 1.96). Controls "
+            "both which latent variables survive and which loading bars are "
+            "plotted. Per-component CSV outputs are written regardless."
         ),
     )
     run_common.add_argument(

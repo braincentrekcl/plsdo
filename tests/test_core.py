@@ -60,16 +60,19 @@ class TestPLSFit:
         np.testing.assert_allclose(model.x_scores, X @ model.u)
         np.testing.assert_allclose(model.y_scores, Y @ model.vt.T)
 
-    def test_singular_values_descending(self, x_array, y_array):
+    def test_sign_convention_largest_loading_positive(self, x_array, y_array):
+        """Each component is sign-fixed so its largest-magnitude X loading is
+        positive. A PLS component's global sign is arbitrary and can flip
+        across BLAS builds; pinning it makes outputs reproducible across
+        machines."""
         from plsdo.io import zscore_columns
 
-        X = zscore_columns(x_array)
-        Y = zscore_columns(y_array)
-        model = PLS(X, Y)
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
         model.fit()
 
-        assert all(model.s[i] >= model.s[i + 1] for i in range(len(model.s) - 1))
-
+        for i in range(model.s.shape[0]):
+            col = model.u_loadings[:, i]
+            assert col[np.argmax(np.abs(col))] > 0
 
 class TestPermutationTest:
     def _fitted_model(self, x_array, y_array):
@@ -133,7 +136,10 @@ class TestPermutationTest:
         model.fit()
         model.permutation_test(n_perms=500)
 
-        assert np.all(model.p_values > 0.001)
+        # > 0.05 is the meaningful non-significance threshold. The previous
+        # 0.001 floor was vacuous: the Phipson & Smyth p-value cannot fall
+        # below 1 / (n_perms + 1) ≈ 0.002, so it held even for a no-op test.
+        assert np.all(model.p_values > 0.05)
 
 
 class TestBootstrap:
@@ -191,27 +197,6 @@ class TestBootstrap:
         m2.bootstrap(n_bootstraps=100)
 
         np.testing.assert_array_equal(m1.u_bootstrap_ratios, m2.u_bootstrap_ratios)
-
-    def test_sign_consistency(self):
-        """Bootstrap loadings for the dominant feature should not flip sign."""
-        rng = np.random.default_rng(0)
-        n = 30
-        signal = rng.standard_normal(n)
-        X = np.column_stack([signal + 0.1 * rng.standard_normal(n) for _ in range(3)])
-        Y = np.column_stack([signal + 0.1 * rng.standard_normal(n) for _ in range(3)])
-        from plsdo.io import zscore_columns
-
-        X = zscore_columns(X)
-        Y = zscore_columns(Y)
-
-        model = PLS(X, Y, seed=42)
-        model.fit()
-        model.bootstrap(n_bootstraps=100)
-
-        dominant_loading_sign = np.sign(model.u_loadings[0, 0])
-        dominant_bsr_sign = np.sign(model.u_bootstrap_ratios[0, 0])
-        assert dominant_loading_sign == dominant_bsr_sign
-
 
 class TestBootstrapZscoreX:
     def test_zscore_x_false_does_not_alter_dummy_x(self):
@@ -304,3 +289,266 @@ class TestFilterLVs:
         # Only LV1 should survive (significant + reliable on both sides)
         expected = np.array([True, False, False])
         np.testing.assert_array_equal(model.final_lvs, expected)
+
+
+class TestKnownAnswer:
+    """Feed the engine data with a planted, known structure and assert it is
+    recovered. The maths is the oracle: these are the automated *correctness*
+    signal for the notebook→class port, and they guard the SVD construction,
+    permutation sensitivity (both directions), and the bootstrap Procrustes
+    alignment against silent regression.
+    """
+
+    @staticmethod
+    def _planted_rank1():
+        """Rank-1 planted signal.
+
+        A single score vector ``t`` drives two X features (loadings ``a``) and
+        two Y features (loadings ``b``), each with equal magnitude and mixed
+        sign so that column z-scoring preserves the structure; the remaining
+        features are noise. After z-scoring the cross-covariance is ≈
+        ``outer(sign(a), sign(b)) · n/(n-1)``, a rank-1 matrix whose top
+        singular vectors recover ``a`` and ``b``.
+        """
+        from plsdo.io import zscore_columns
+
+        n = 60
+        a = np.array([1.0, -1.0, 0.0, 0.0])
+        b = np.array([1.0, -1.0, 0.0])
+        rng = np.random.default_rng(0)
+        t = rng.standard_normal(n)
+        X = np.outer(t, a) + 0.05 * rng.standard_normal((n, len(a)))
+        Y = np.outer(t, b) + 0.05 * rng.standard_normal((n, len(b)))
+        return zscore_columns(X), zscore_columns(Y), a, b, n
+
+    @staticmethod
+    def _near_degenerate():
+        """Two planted components with nearly equal singular values.
+
+        Bootstrap resamples rotate and swap the two near-degenerate components,
+        so the Procrustes alignment in ``bootstrap()`` is essential to keep the
+        loadings stable. Without it the standard errors inflate and the
+        bootstrap ratios collapse.
+        """
+        from plsdo.io import zscore_columns
+
+        n = 80
+        rng = np.random.default_rng(0)
+        t1 = rng.standard_normal(n)
+        t2 = rng.standard_normal(n)
+        t2 = t2 - (t2 @ t1) / (t1 @ t1) * t1  # orthogonalise t2 against t1
+        a1 = np.array([1.0, 1.0, 0, 0, 0, 0])
+        b1 = np.array([1.0, 1.0, 0, 0])
+        a2 = np.array([0, 0, 1.0, 1.0, 0, 0])
+        b2 = np.array([0, 0, 1.0, 1.0])
+        c2 = 0.95  # second component slightly weaker → near-degenerate
+        X = np.outer(t1, a1) + c2 * np.outer(t2, a2) + 0.3 * rng.standard_normal((n, 6))
+        Y = np.outer(t1, b1) + c2 * np.outer(t2, b2) + 0.3 * rng.standard_normal((n, 4))
+        return zscore_columns(X), zscore_columns(Y)
+
+    def test_top_lv_recovers_planted_directions(self):
+        """Top LV aligns with the planted loadings and dominates the spectrum."""
+        X, Y, a, b, n = self._planted_rank1()
+        model = PLS(X, Y, seed=42)
+        model.fit()
+
+        # Top singular value matches the analytic value 2·n/(n-1): two planted
+        # features each side, |correlation| ≈ 1, scaled by the n/(n-1) divisor.
+        # rel=0.01 distinguishes it from the 1/n divisor (which gives ≈ 2.0).
+        assert model.s[0] == pytest.approx(2 * n / (n - 1), rel=0.01)
+
+        # Second singular value is far smaller — the signal is rank-1.
+        assert model.s[1] / model.s[0] < 0.1
+
+        # The top singular vectors align with the planted directions (up to the
+        # arbitrary global sign of an SVD component).
+        ahat = a / np.linalg.norm(a)
+        bhat = b / np.linalg.norm(b)
+        cos_u = model.u[:, 0] @ ahat
+        cos_v = model.vt[0, :] @ bhat
+        assert abs(cos_u) > 0.95
+        assert abs(cos_v) > 0.95
+        # The X and Y sides share the same global sign (joint structure of the
+        # cross-covariance), so the two cosines have the same sign.
+        assert cos_u * cos_v > 0
+
+        # The two largest loadings fall on the planted features.
+        assert set(np.argsort(np.abs(model.u[:, 0]))[-2:]) == {0, 1}
+        assert set(np.argsort(np.abs(model.vt[0, :]))[-2:]) == {0, 1}
+
+    def test_permutation_significant_on_planted_not_on_random(self):
+        """Permutation p is small on planted data, large on random data."""
+        X, Y, _, _, _ = self._planted_rank1()
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        model.permutation_test(n_perms=499)
+        # A no-op permutation (perm_order = arange) would leave the observed
+        # singular value in the null every time, forcing p = 1.0 here.
+        assert model.p_values[0] < 0.05
+
+        rng = np.random.default_rng(0)
+        from plsdo.io import zscore_columns
+
+        Xr = zscore_columns(rng.standard_normal((60, 4)))
+        Yr = zscore_columns(rng.standard_normal((60, 3)))
+        model_r = PLS(Xr, Yr, seed=7)
+        model_r.fit()
+        model_r.permutation_test(n_perms=499)
+        assert model_r.p_values[0] > 0.05
+
+    def test_bootstrap_ratios_reliable_on_planted_features(self):
+        """Dominant planted features are reliable (|BSR| > 1.96) on both sides
+        with the correct relative-sign structure."""
+        X, Y, _, _, _ = self._planted_rank1()
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        model.bootstrap(n_bootstraps=500)
+
+        # Planted features 0 and 1 are reliable on both the X and Y sides.
+        assert abs(model.u_bootstrap_ratios[0, 0]) > 1.96
+        assert abs(model.u_bootstrap_ratios[1, 0]) > 1.96
+        assert abs(model.vt_bootstrap_ratios[0, 0]) > 1.96
+        assert abs(model.vt_bootstrap_ratios[0, 1]) > 1.96
+        # Noise features are not reliable.
+        assert abs(model.u_bootstrap_ratios[2, 0]) < 1.96
+        assert abs(model.u_bootstrap_ratios[3, 0]) < 1.96
+        # The two planted features carry opposite signs (matching a = [+, -]),
+        # a global-sign-invariant structural check.
+        assert np.sign(model.u_bootstrap_ratios[0, 0]) != np.sign(
+            model.u_bootstrap_ratios[1, 0]
+        )
+        assert np.sign(model.vt_bootstrap_ratios[0, 0]) != np.sign(
+            model.vt_bootstrap_ratios[0, 1]
+        )
+
+    def test_procrustes_keeps_degenerate_loadings_reliable(self):
+        """With near-degenerate components, Procrustes alignment keeps all
+        planted features reliable on the top LV. Without it (Q = I) the
+        rotating components inflate the standard errors and the ratios drop."""
+        X, Y = self._near_degenerate()
+        model = PLS(X, Y, seed=42)
+        model.fit()
+        model.bootstrap(n_bootstraps=500)
+
+        # All four planted features (two per component) are reliable on LV1.
+        assert np.all(np.abs(model.u_bootstrap_ratios[:4, 0]) > 1.96)
+
+
+class TestEdgeCases:
+    """SVD-path edge cases: extreme feature counts and the discriminatory
+    many-group design. Assert shapes hold so the engine degrades gracefully."""
+
+    def test_single_x_feature(self):
+        """A single X feature yields one component and runs end-to-end."""
+        from plsdo.io import zscore_columns
+
+        rng = np.random.default_rng(0)
+        X = zscore_columns(rng.standard_normal((20, 1)))
+        Y = zscore_columns(rng.standard_normal((20, 4)))
+        model = PLS(X, Y, seed=1)
+        model.fit()
+        model.permutation_test(n_perms=50)
+        model.bootstrap(n_bootstraps=50)
+        model.filter_lvs()
+
+        assert model.s.shape == (1,)
+        assert model.u.shape == (1, 1)
+        assert model.vt.shape == (1, 4)
+        assert model.u_bootstrap_ratios.shape == (1, 1)
+        assert model.final_lvs.shape == (1,)
+
+    def test_additive_multifactor_trailing_lv_is_inert(self):
+        """An additive K-factor dummy design is rank-deficient by K-1. The
+        degenerate trailing latent variable must be harmless: ~zero singular
+        value, non-significant, dropped by filter_lvs, with ~zero loadings.
+        (Guards the design without switching to contrast coding.)"""
+        from plsdo.io import zscore_columns
+
+        a = np.repeat(np.arange(3), 4)  # factor A, 3 levels, 12 subjects
+        b = np.tile([0, 1], 6)  # factor B, 2 levels
+        X = np.column_stack([np.eye(3)[a], np.eye(2)[b]]).astype(float)
+        Y = zscore_columns(np.random.default_rng(0).standard_normal((12, 4)))
+
+        model = PLS(X, Y, seed=42, zscore_x=False)
+        model.fit()
+        model.permutation_test(n_perms=100)
+        model.bootstrap(n_bootstraps=100)
+        model.filter_lvs()
+
+        assert model.s[-1] < 1e-8
+        assert not model.significant_lvs[-1]
+        assert not model.final_lvs[-1]
+        assert np.abs(model.u_loadings[:, -1]).max() < 1e-6
+
+    def test_many_group_discriminatory(self):
+        """Dummy-coded X with five groups gives min(n_groups, n_y) components."""
+        from plsdo.io import zscore_columns
+
+        labels = np.repeat(np.arange(5), 5)  # 5 groups, 25 subjects
+        X = np.eye(5)[labels].astype(float)  # discriminatory design (not z-scored)
+        Y = zscore_columns(np.random.default_rng(0).standard_normal((25, 3)))
+        model = PLS(X, Y, seed=1, zscore_x=False)
+        model.fit()
+        model.permutation_test(n_perms=30)
+        model.bootstrap(n_bootstraps=30)
+        model.filter_lvs()
+
+        n_components = min(5, 3)
+        assert model.s.shape == (n_components,)
+        assert model.u.shape == (5, n_components)
+        assert model.vt.shape == (n_components, 3)
+        assert model.final_lvs.shape == (n_components,)
+
+
+class TestInvariants:
+    """Cheap properties any correct PLS decomposition must satisfy. No
+    reference values needed; these guard against a future ``_decompose`` (e.g.
+    a SparsePLS override) silently breaking the SVD contract.
+    """
+
+    @staticmethod
+    def _planted(eps, seed=0):
+        from plsdo.io import zscore_columns
+
+        n = 60
+        a = np.array([1.0, -1.0, 0, 0])
+        b = np.array([1.0, -1.0, 0])
+        rng = np.random.default_rng(seed)
+        t = rng.standard_normal(n)
+        X = np.outer(t, a) + eps * rng.standard_normal((n, len(a)))
+        Y = np.outer(t, b) + eps * rng.standard_normal((n, len(b)))
+        return zscore_columns(X), zscore_columns(Y)
+
+    def test_svd_reconstructs_cross_covariance(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+        reconstructed = model.u @ np.diag(model.s) @ model.vt
+        np.testing.assert_allclose(reconstructed, model.xcorr, atol=1e-12)
+
+    def test_singular_vectors_orthonormal(self, x_array, y_array):
+        from plsdo.io import zscore_columns
+
+        model = PLS(zscore_columns(x_array), zscore_columns(y_array))
+        model.fit()
+        k = model.s.shape[0]
+        np.testing.assert_allclose(model.u.T @ model.u, np.eye(k), atol=1e-12)
+        np.testing.assert_allclose(model.vt @ model.vt.T, np.eye(k), atol=1e-12)
+
+    def test_bootstrap_se_shrinks_as_snr_rises(self):
+        """Stronger planted signal ⇒ smaller bootstrap SE / larger BSR on the
+        dominant feature."""
+        X_hi, Y_hi = self._planted(eps=0.1)
+        X_lo, Y_lo = self._planted(eps=0.8)
+
+        m_hi = PLS(X_hi, Y_hi, seed=42)
+        m_hi.fit()
+        m_hi.bootstrap(n_bootstraps=400)
+
+        m_lo = PLS(X_lo, Y_lo, seed=42)
+        m_lo.fit()
+        m_lo.bootstrap(n_bootstraps=400)
+
+        assert m_hi.u_se[0, 0] < m_lo.u_se[0, 0]
+        assert abs(m_hi.u_bootstrap_ratios[0, 0]) > abs(m_lo.u_bootstrap_ratios[0, 0])

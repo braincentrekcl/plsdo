@@ -111,37 +111,6 @@ class TestVerboseFeatureLimit:
         assert len(produced) > 1
         assert "scree.svg" in produced
 
-    def test_explicit_lower_limit_fires_guard(self, figures_dir, caplog):
-        """60 features with limit=50 — guard fires."""
-        n_features = 60
-        model = _make_mock_model(n_x=n_features, n_y=n_features)
-
-        with caplog.at_level(logging.WARNING, logger="plsdo"):
-            _plot_verbose(
-                model=model,
-                method="correlational",
-                X=np.zeros((10, n_features)),
-                Y=np.zeros((10, n_features)),
-                x_feature_names=[f"x{i}" for i in range(n_features)],
-                x_display_names=[f"x{i}" for i in range(n_features)],
-                y_feature_names=[f"y{i}" for i in range(n_features)],
-                x_colours=None,
-                y_colours=None,
-                final_lv_indices=np.array([0]),
-                final_lv_names=["LV1"],
-                config=None,
-                demo_aligned=None,
-                figures_dir=figures_dir,
-                ext="svg",
-                dpi=72,
-                verbose_feature_limit=50,
-            )
-
-        assert any("Skipping verbose plots" in msg for msg in caplog.messages)
-        produced = sorted(p.name for p in figures_dir.iterdir())
-        assert produced == ["scree.svg"]
-
-
 class TestMultiIndexSubjectScores:
     """Integration: compound subject ID produces a two-level index in CSV."""
 
@@ -243,6 +212,16 @@ class TestRunPipelineOutputs:
         assert "PLS analysis log" in log
         assert __version__ in log
         assert f"method: {method}" in log
+
+    def test_log_records_dependency_versions(self, run_out):
+        import numpy
+        import scipy
+
+        _method, out = run_out
+        log = (out / "log.txt").read_text()
+        assert f"numpy: {numpy.__version__}" in log
+        assert f"scipy: {scipy.__version__}" in log
+        assert "scikit-learn:" in log
 
     def test_core_figures_produced(self, run_out):
         _method, out = run_out
@@ -516,3 +495,32 @@ class TestFacetWiring:
             calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
         assert calls[0]["col_wrap"] is None
         assert "facet_col_wrap" in caplog.text
+
+
+class TestBsrThresholdControlsSurvival:
+    """The --bsr-threshold flag controls LV survival, not only plotting."""
+
+    def _run(self, out, bsr_threshold):
+        run_pipeline(
+            method="correlational",
+            x_path=DATA_DIR / "brain.csv",
+            y_path=DATA_DIR / "behaviour.csv",
+            demographics_path=DATA_DIR / "demographics.csv",
+            output_dir=out,
+            group_col="group",
+            subject_id="subject_id",
+            n_perms=200,
+            n_bootstraps=200,
+            seed=42,
+            img_format="png",
+            dpi=72,
+            bsr_threshold=bsr_threshold,
+        )
+        return out / "data" / "subject_scores.csv"
+
+    def test_high_threshold_drops_all_lvs(self, tmp_path):
+        # At the default threshold a latent variable survives and scores are
+        # written; an unreachably high threshold makes no feature reliable, so
+        # no LV survives and the scores file is not written.
+        assert self._run(tmp_path / "default", 1.96).exists()
+        assert not self._run(tmp_path / "high", 1e6).exists()

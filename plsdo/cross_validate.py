@@ -2,14 +2,20 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.cross_decomposition import PLSRegression
-from sklearn.metrics import (
-    accuracy_score,
-    balanced_accuracy_score,
-    confusion_matrix,
-)
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.preprocessing import StandardScaler
+try:
+    from sklearn.cross_decomposition import PLSRegression
+    from sklearn.metrics import (
+        accuracy_score,
+        balanced_accuracy_score,
+        confusion_matrix,
+    )
+    from sklearn.model_selection import RepeatedStratifiedKFold
+    from sklearn.preprocessing import StandardScaler
+except ImportError as exc:
+    raise ImportError(
+        "scikit-learn is required for cross-validation but is not installed. "
+        "Install the optional dependency with: pip install 'plsdo[cv]'"
+    ) from exc
 
 from plsdo.io import corrected_pvalue
 
@@ -45,6 +51,10 @@ def run_cv(
         mean_accuracy, mean_balanced_accuracy, fold_results (DataFrame),
         true_labels, pred_labels, confusion_matrix
     """
+    # Deliberate X/Y flip, opposite to `plsdo discriminatory`: the continuous
+    # data ``X`` is the *predictor* and the dummy-coded groups are the
+    # *target*, so PLSRegression.predict yields predicted group scores that
+    # argmax into class labels.
     n_groups = len(np.unique(labels))
     Y_dummy = np.eye(n_groups)[labels]
 
