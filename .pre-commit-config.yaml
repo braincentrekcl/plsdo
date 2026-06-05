@@ -1,0 +1,9 @@
+# Run `pre-commit install` once to enable these hooks locally.
+# Keep this rev in step with the ruff pin in pyproject.toml; bump both together.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.11
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

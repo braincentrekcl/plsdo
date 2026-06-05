@@ -74,6 +74,7 @@ class TestPLSFit:
             col = model.u_loadings[:, i]
             assert col[np.argmax(np.abs(col))] > 0
 
+
 class TestPermutationTest:
     def _fitted_model(self, x_array, y_array):
         from plsdo.io import zscore_columns
@@ -197,6 +198,7 @@ class TestBootstrap:
         m2.bootstrap(n_bootstraps=100)
 
         np.testing.assert_array_equal(m1.u_bootstrap_ratios, m2.u_bootstrap_ratios)
+
 
 class TestBootstrapZscoreX:
     def test_zscore_x_false_does_not_alter_dummy_x(self):

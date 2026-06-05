@@ -209,17 +209,21 @@ class TestPlotScoresBoxstrip:
         real_stripplot = sns.stripplot
 
         def spy_boxplot(*args, **kwargs):
-            captured["boxplot"].append({
-                "palette": kwargs.get("palette"),
-                "hue_order": kwargs.get("hue_order"),
-            })
+            captured["boxplot"].append(
+                {
+                    "palette": kwargs.get("palette"),
+                    "hue_order": kwargs.get("hue_order"),
+                }
+            )
             return real_boxplot(*args, **kwargs)
 
         def spy_stripplot(*args, **kwargs):
-            captured["stripplot"].append({
-                "palette": kwargs.get("palette"),
-                "hue_order": kwargs.get("hue_order"),
-            })
+            captured["stripplot"].append(
+                {
+                    "palette": kwargs.get("palette"),
+                    "hue_order": kwargs.get("hue_order"),
+                }
+            )
             return real_stripplot(*args, **kwargs)
 
         monkeypatch.setattr(plotting_mod.sns, "boxplot", spy_boxplot)
@@ -272,7 +276,9 @@ class TestPlotScoresBoxstrip:
                 rows.append({"group": g, "score": rng.standard_normal(), "LV": "LV1"})
         scores_df = pd.DataFrame(rows)
         scores_df["group"] = pd.Categorical(
-            scores_df["group"], categories=cat_order, ordered=True,
+            scores_df["group"],
+            categories=cat_order,
+            ordered=True,
         )
 
         # Prevent plt.close so we can inspect the rendered figure
@@ -306,9 +312,7 @@ class TestPlotScoresBoxstrip:
                 continue
             for offset, fc in zip(offsets, fcs):
                 x_pos = round(offset[0])
-                strip_colours.setdefault(x_pos, set()).add(
-                    tuple(fc[:3].round(4))
-                )
+                strip_colours.setdefault(x_pos, set()).add(tuple(fc[:3].round(4)))
 
         # Each box patch colour should match the strip colour at the
         # same position.
@@ -341,7 +345,9 @@ class TestPlotScoresBoxstrip:
                             }
                         )
         df = pd.DataFrame(rows)
-        df["group"] = pd.Categorical(df["group"], categories=["A", "B", "C"], ordered=True)
+        df["group"] = pd.Categorical(
+            df["group"], categories=["A", "B", "C"], ordered=True
+        )
         return df
 
     def test_row_col_produces_grid_rows(self, tmp_output, monkeypatch):

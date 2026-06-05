@@ -111,6 +111,7 @@ class TestVerboseFeatureLimit:
         assert len(produced) > 1
         assert "scree.svg" in produced
 
+
 class TestMultiIndexSubjectScores:
     """Integration: compound subject ID produces a two-level index in CSV."""
 
@@ -471,9 +472,7 @@ class TestFacetWiring:
     def test_default_layout_threads_col_wrap(self, monkeypatch, tmp_path):
         """In the default layout (LV on columns, no facet) facet_col_wrap is
         passed through to control column wrapping."""
-        config = GroupConfig(
-            groups=[GroupSpec("group", "x_axis", facet_col_wrap=3)]
-        )
+        config = GroupConfig(groups=[GroupSpec("group", "x_axis", facet_col_wrap=3)])
         calls = self._capture_boxstrip_calls(config, monkeypatch, tmp_path)
         assert calls[0]["col_col"] == "LV"
         assert calls[0]["row_col"] is None

@@ -39,7 +39,8 @@ cv = [
 dev = [
     "pytest",
     "pytest-cov",
-    "ruff",
+    "ruff==0.15.11",
+    "pre-commit",
     "scikit-learn",
 ]
 

@@ -109,9 +109,7 @@ class PLS:
             perm_s_list.append(perm_s)
 
         self.permuted_singular_values = np.stack(perm_s_list, axis=1)
-        self.p_values = corrected_pvalue(
-            self.s, self.permuted_singular_values, axis=1
-        )
+        self.p_values = corrected_pvalue(self.s, self.permuted_singular_values, axis=1)
         self.significant_lvs = self.p_values < 0.05
         self._permuted = True
 

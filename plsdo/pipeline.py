@@ -200,7 +200,7 @@ def run_pipeline(
         if len(active) == 1:
             prefix = active[0].column + "_"
             x_display_names = [
-                name[len(prefix):] if name.startswith(prefix) else name
+                name[len(prefix) :] if name.startswith(prefix) else name
                 for name in x_feature_names
             ]
         else:

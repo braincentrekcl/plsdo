@@ -46,8 +46,11 @@ jobs:
           uv venv
           uv pip install -e ".[dev]"
 
-      - name: Run ruff
-        run: uv run ruff check plsdo/ tests/
+      - name: Run ruff check
+        run: uv run ruff check plsdo/ tests/ scripts/
+
+      - name: Run ruff format check
+        run: uv run ruff format --check plsdo/ tests/ scripts/
 
       - name: Check version consistency
         run: python scripts/check_version.py

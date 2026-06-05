@@ -167,9 +167,7 @@ def align_subjects(
         col = sid[0]
         id_sets = [set(df[col]) for df in dfs]
     else:
-        id_sets = [
-            set(df[sid].itertuples(index=False, name=None)) for df in dfs
-        ]
+        id_sets = [set(df[sid].itertuples(index=False, name=None)) for df in dfs]
 
     shared_ids = id_sets[0]
     for s in id_sets[1:]:
@@ -203,8 +201,7 @@ def align_subjects(
         ordered_df = pd.DataFrame(ordered_tuples, columns=sid)
 
     aligned = [
-        ordered_df.merge(df, on=sid, how="left").reset_index(drop=True)
-        for df in dfs
+        ordered_df.merge(df, on=sid, how="left").reset_index(drop=True) for df in dfs
     ]
     return aligned
 
@@ -345,9 +342,7 @@ class GroupConfig:
     groups: list[GroupSpec] = field(default_factory=list)
 
     @classmethod
-    def from_group_col(
-        cls, group_col: str, subject_id: SubjectID | None = None
-    ):
+    def from_group_col(cls, group_col: str, subject_id: SubjectID | None = None):
         """Create a config from a single --group-col string."""
         return cls(
             subject_id=subject_id,
@@ -368,9 +363,7 @@ class GroupConfig:
 
     def hue_column(self) -> Optional[str]:
         """Column name of the group with role 'hue', or None if none."""
-        return next(
-            (g.column for g in self.active_groups() if g.role == "hue"), None
-        )
+        return next((g.column for g in self.active_groups() if g.role == "hue"), None)
 
     def facet_rows_column(self) -> Optional[str]:
         """Column name of the group with role 'facet_rows', or None if none."""
