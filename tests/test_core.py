@@ -36,7 +36,11 @@ class TestPLSFit:
         expected = X.T @ Y / (X.shape[0] - 1)
         np.testing.assert_allclose(model.xcorr, expected)
 
-    def test_loadings_are_scaled_vectors(self, x_array, y_array):
+    def test_loadings_are_raw_saliences(self, x_array, y_array):
+        """Loadings are the singular vectors (saliences) themselves, not
+        scaled by the singular values. Bootstrap ratios are formed from these
+        raw saliences (McIntosh & Lobaugh 2004; Krishnan et al. 2011), so the
+        singular values must not enter and contaminate the bootstrap SE."""
         from plsdo.io import zscore_columns
 
         X = zscore_columns(x_array)
@@ -44,10 +48,8 @@ class TestPLSFit:
         model = PLS(X, Y)
         model.fit()
 
-        expected_u_load = model.u @ np.diag(model.s)
-        expected_vt_load = np.diag(model.s) @ model.vt
-        np.testing.assert_allclose(model.u_loadings, expected_u_load)
-        np.testing.assert_allclose(model.vt_loadings, expected_vt_load)
+        np.testing.assert_allclose(model.u_loadings, model.u)
+        np.testing.assert_allclose(model.vt_loadings, model.vt)
 
     def test_scores_are_projections(self, x_array, y_array):
         from plsdo.io import zscore_columns
@@ -462,8 +464,8 @@ class TestEdgeCases:
     def test_additive_multifactor_trailing_lv_is_inert(self):
         """An additive K-factor dummy design is rank-deficient by K-1. The
         degenerate trailing latent variable must be harmless: ~zero singular
-        value, non-significant, dropped by filter_lvs, with ~zero loadings.
-        (Guards the design without switching to contrast coding.)"""
+        value, non-significant, dropped by filter_lvs. (Guards the design
+        without switching to contrast coding.)"""
         from plsdo.io import zscore_columns
 
         a = np.repeat(np.arange(3), 4)  # factor A, 3 levels, 12 subjects
@@ -480,7 +482,6 @@ class TestEdgeCases:
         assert model.s[-1] < 1e-8
         assert not model.significant_lvs[-1]
         assert not model.final_lvs[-1]
-        assert np.abs(model.u_loadings[:, -1]).max() < 1e-6
 
     def test_many_group_discriminatory(self):
         """Dummy-coded X with five groups gives min(n_groups, n_y) components."""

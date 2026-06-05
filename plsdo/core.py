@@ -50,8 +50,8 @@ class PLS:
         self.xcorr = self.X.T @ self.Y / (self.n_subjects - 1)
         self._decompose()
         self._fix_component_signs()
-        self.u_loadings = self.u * self.s[np.newaxis, :]
-        self.vt_loadings = self.s[:, np.newaxis] * self.vt
+        self.u_loadings = self.u
+        self.vt_loadings = self.vt
         self.x_scores = self.X @ self.u
         self.y_scores = self.Y @ self.vt.T
         self._fitted = True
@@ -141,22 +141,19 @@ class PLS:
             y_boot = zscore_columns(self.Y[idx, :])
 
             boot_xcorr = x_boot.T @ y_boot / (self.n_subjects - 1)
-            boot_u, boot_s, boot_vt = np.linalg.svd(boot_xcorr, full_matrices=False)
+            boot_u, _, boot_vt = np.linalg.svd(boot_xcorr, full_matrices=False)
 
             # Procrustes: rotate bootstrap Vt to align with reference
             Q, _ = orthogonal_procrustes(boot_vt.T, self.vt.T)
 
-            boot_u_load = boot_u * boot_s[np.newaxis, :]
-            boot_vt_load = boot_s[:, np.newaxis] * boot_vt
-
-            aligned_u_load = boot_u_load @ Q
-            aligned_vt_load = Q.T @ boot_vt_load
+            aligned_u = boot_u @ Q
+            aligned_vt = Q.T @ boot_vt
 
             # No separate sign correction: orthogonal_procrustes returns an
             # unconstrained orthogonal matrix (reflections allowed), so the
             # alignment above already resolves each component's arbitrary sign.
-            u_distribution.append(aligned_u_load)
-            vt_distribution.append(aligned_vt_load)
+            u_distribution.append(aligned_u)
+            vt_distribution.append(aligned_vt)
 
         self.u_se = np.std(np.stack(u_distribution, axis=2), axis=2, ddof=1)
         self.vt_se = np.std(np.stack(vt_distribution, axis=2), axis=2, ddof=1)
